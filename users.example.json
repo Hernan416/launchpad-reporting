@@ -1,0 +1,13 @@
+[
+  {
+    "email": "team@launchpadai.co",
+    "passwordHash": "$2b$10$REPLACE_ME",
+    "role": "master"
+  },
+  {
+    "email": "owner@excelroofing.com",
+    "passwordHash": "$2b$10$REPLACE_ME",
+    "role": "client",
+    "clientSlug": "excel-roofing"
+  }
+]
