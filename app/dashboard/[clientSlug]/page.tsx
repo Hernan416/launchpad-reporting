@@ -47,6 +47,16 @@ export default async function ClientDashboardPage({
         </p>
       </div>
 
+      {report.warnings.length > 0 && (
+        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-400">
+          <ul className="list-inside list-disc">
+            {report.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <MetricGroup title="Meta Ads">
         <MetricCard label="CPC" value={formatCurrency(report.meta.cpc)} />
         <MetricCard label="CTR" value={formatPercent(report.meta.ctr)} />

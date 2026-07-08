@@ -1,11 +1,12 @@
 import type { ClientReport, Period } from "@/types";
 import { getClientBySlug } from "@/config/clients";
+import { getMetaInsights, type MetaInsights } from "@/lib/meta";
+import { getAppointmentStats, getSalesStats } from "@/lib/ghl";
 
-/**
- * TODO: replace this mock with real calls into lib/meta.ts + lib/ghl.ts.
- * Kept as the single entry point so the UI/auth layers don't need to change
- * once real data sources are wired in.
- */
+function safeDivide(numerator: number, denominator: number): number {
+  return denominator > 0 ? numerator / denominator : 0;
+}
+
 export async function getClientReport(
   slug: string,
   period: Period
@@ -15,40 +16,75 @@ export async function getClientReport(
     throw new Error(`Unknown client slug: ${slug}`);
   }
 
-  const multiplier = period === "30d" ? 4.2 : 1;
-  const spend = 1200 * multiplier;
-  const clicks = 480 * multiplier;
-  const leads = 62 * multiplier;
-  const landingPageViews = 900 * multiplier;
-  const appointments = 30 * multiplier;
-  const shows = 21 * multiplier;
-  const quotesSent = 16 * multiplier;
-  const closed = 6 * multiplier;
+  const warnings: string[] = [];
+
+  let meta: MetaInsights = {
+    spend: 0,
+    clicks: 0,
+    impressions: 0,
+    cpc: 0,
+    ctr: 0,
+    leads: 0,
+    landingPageViews: 0,
+  };
+  try {
+    meta = await getMetaInsights(
+      client.metaAdAccountId,
+      period,
+      client.metaLeadActionType
+    );
+  } catch (err) {
+    console.error(`[metrics] Meta Ads fetch failed for ${slug}:`, err);
+    warnings.push("No se pudieron cargar los datos de Meta Ads.");
+  }
+
+  let appointments = 0;
+  let shows = 0;
+  try {
+    const stats = await getAppointmentStats(client, period);
+    appointments = stats.appointments;
+    shows = stats.shows;
+  } catch (err) {
+    console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, err);
+    warnings.push("No se pudieron cargar las citas de GHL.");
+  }
+
+  let quotesSent = 0;
+  let closed = 0;
+  try {
+    const stats = await getSalesStats(client, period);
+    quotesSent = stats.quotesSent;
+    closed = stats.closed;
+  } catch (err) {
+    console.error(`[metrics] GHL sales fetch failed for ${slug}:`, err);
+    warnings.push("No se pudieron cargar las oportunidades de venta de GHL.");
+  }
 
   return {
     period,
     updatedAt: new Date().toISOString(),
+    warnings,
     meta: {
-      spend,
-      clicks,
-      impressions: clicks * 22,
-      cpc: spend / clicks,
-      ctr: clicks / (clicks * 22),
-      leads,
-      costPerLead: spend / leads,
+      spend: meta.spend,
+      clicks: meta.clicks,
+      impressions: meta.impressions,
+      cpc: meta.cpc,
+      ctr: meta.ctr,
+      leads: meta.leads,
+      costPerLead: safeDivide(meta.spend, meta.leads),
     },
     funnel: {
-      landingPageViews,
-      optInRate: leads / landingPageViews,
+      landingPageViews: meta.landingPageViews,
+      optInRate: safeDivide(meta.leads, meta.landingPageViews),
       appointments,
-      costPerAppointment: spend / appointments,
+      costPerAppointment: safeDivide(meta.spend, appointments),
     },
     sales: {
-      showRate: shows / appointments,
-      costPerShownAppt: spend / shows,
+      showRate: safeDivide(shows, appointments),
+      costPerShownAppt: safeDivide(meta.spend, shows),
       quotesSent,
       closed,
-      cac: spend / closed,
+      cac: safeDivide(meta.spend, closed),
     },
   };
 }

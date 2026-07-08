@@ -37,6 +37,9 @@ yarn-error.log*
 # local user credentials (contains password hashes, never commit)
 users.local.json
 
+# MCP server config — contains live GHL Private Integration Tokens
+.mcp.json
+
 # vercel
 .vercel
 

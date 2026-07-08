@@ -8,7 +8,11 @@ export default async function LoginPage({
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
   const { callbackUrl, error } = await searchParams;
-  const destination = callbackUrl || "/dashboard";
+  // Default to "/" rather than "/dashboard" so role-based routing goes
+  // through app/page.tsx's redirect() (a real client-side navigation),
+  // instead of relying on proxy.ts's redirect during the post-login RSC
+  // transition, which doesn't update the browser's address bar.
+  const destination = callbackUrl || "/";
 
   async function authenticate(formData: FormData) {
     "use server";

@@ -15,7 +15,11 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
+// The `token` param in callbacks is typed against @auth/core's own JWT
+// (imported internally via a relative "./jwt.js" path), not the
+// "next-auth/jwt" re-export — augmenting the latter alone doesn't merge
+// into the type actually used by NextAuth's callback signatures.
+declare module "@auth/core/jwt" {
   interface JWT {
     role: Role;
     clientSlug?: string;
