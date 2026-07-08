@@ -35,7 +35,7 @@ export async function getClientReport(
     );
   } catch (err) {
     console.error(`[metrics] Meta Ads fetch failed for ${slug}:`, err);
-    warnings.push("No se pudieron cargar los datos de Meta Ads.");
+    warnings.push("Couldn't load Meta Ads data.");
   }
 
   let appointments = 0;
@@ -46,7 +46,7 @@ export async function getClientReport(
     shows = stats.shows;
   } catch (err) {
     console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, err);
-    warnings.push("No se pudieron cargar las citas de GHL.");
+    warnings.push("Couldn't load appointments from GHL.");
   }
 
   let quotesSent = 0;
@@ -57,7 +57,7 @@ export async function getClientReport(
     closed = stats.closed;
   } catch (err) {
     console.error(`[metrics] GHL sales fetch failed for ${slug}:`, err);
-    warnings.push("No se pudieron cargar las oportunidades de venta de GHL.");
+    warnings.push("Couldn't load sales opportunities from GHL.");
   }
 
   return {

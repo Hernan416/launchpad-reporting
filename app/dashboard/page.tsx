@@ -18,19 +18,19 @@ export default async function MasterDashboardPage() {
   }
 
   return (
-    <DashboardShell title="Launchpad AI — Todos los clientes">
+    <DashboardShell title="Launchpad AI — All Clients">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {clients.map((client) => (
           <Link
             key={client.slug}
             href={`/dashboard/${client.slug}`}
-            className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-blue-300 hover:shadow-md"
           >
-            <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            <p className="text-lg font-semibold text-slate-900">
               {client.name}
             </p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Ver reporte →
+            <p className="mt-1 text-sm font-medium text-blue-600">
+              View report →
             </p>
           </Link>
         ))}

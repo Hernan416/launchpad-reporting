@@ -42,13 +42,13 @@ export default async function ClientDashboardPage({
     <DashboardShell title={client.name}>
       <div className="flex items-center justify-between">
         <PeriodToggle slug={clientSlug} period={period} />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Actualizado: {new Date(report.updatedAt).toLocaleString()}
+        <p className="text-sm text-slate-500">
+          Updated: {new Date(report.updatedAt).toLocaleString("en-US")}
         </p>
       </div>
 
       {report.warnings.length > 0 && (
-        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-400">
+        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <ul className="list-inside list-disc">
             {report.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
