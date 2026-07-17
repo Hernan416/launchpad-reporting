@@ -9,12 +9,28 @@ export interface AppUser {
   name?: string;
 }
 
+export interface CustomFunnelConfig {
+  pipelineName: string;
+  /** Case-insensitive substring match against the opportunity's contact's `source` field. */
+  leadsSourceMatch: string;
+  websiteLeadsSourceMatch: string;
+  quoteFollowUpStageNames: string[];
+  quoteYesStageNames: string[];
+  quoteNoStageNames: string[];
+  reviewingStageNames: string[];
+  /** "Shows" are tracked as a stage in a different pipeline than the one above. */
+  showsPipelineName: string;
+  showsStageNames: string[];
+}
+
 export interface ClientConfig {
   slug: string;
   name: string;
   metaAdAccountId: string;
   /** Meta action_type used as "lead" — varies per client's pixel/Lead Ads setup. */
   metaLeadActionType?: string;
+  /** false for clients with no Meta Ads involvement — renders the GHL-only custom funnel dashboard instead of the standard report. Defaults to true. */
+  showMetaAds?: boolean;
   ghlLocationId: string;
   /** Calendars to pull booked appointments from (summed) — a client can run appointments across several calendars (e.g. per service line). */
   ghlCalendarIds?: string[];
@@ -24,6 +40,8 @@ export interface ClientConfig {
   ghlPipelineName?: string;
   ghlQuoteSentStageName?: string;
   ghlClosedStageName?: string;
+  /** Used instead of the standard Meta+GHL report when showMetaAds is false. */
+  customFunnel?: CustomFunnelConfig;
 }
 
 export type Period = "7d" | "30d";
@@ -98,4 +116,47 @@ export interface ClientReport {
   sales: SalesMetrics;
   /** Populated when a data source (Meta/GHL) failed — shown as a banner instead of silently zeroing metrics. */
   warnings: string[];
+}
+
+/** GHL-only report for clients with no Meta Ads involvement (see ClientConfig.customFunnel). */
+export interface PipelineFunnelReport {
+  period: Period;
+  updatedAt: string;
+  warnings: string[];
+  leads: number;
+  websiteLeads: number;
+  quoteFollowUp: number;
+  quotesSent: number;
+  revenueOpportunity: number;
+  reviewing: number;
+  decisions: number;
+  quoteYes: number;
+  quoteNo: number;
+  revenueClosed: number;
+  decisionRate: number;
+  yesRate: number;
+  noRate: number;
+  appointments: number;
+  shows: number;
+  showRate: number;
+  closeRate: number;
+}
+
+export interface WeeklyPipelineDataPoint {
+  weekLabel: string;
+  weekStart: string;
+  leads: number;
+  websiteLeads: number;
+  quoteFollowUp: number;
+  quotesSent: number;
+  revenueOpportunity: number;
+  reviewing: number;
+  decisions: number;
+  quoteYes: number;
+  quoteNo: number;
+  revenueClosed: number;
+  decisionRate: number;
+  yesRate: number;
+  noRate: number;
+  shows: number;
 }

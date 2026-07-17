@@ -1,10 +1,18 @@
-import type { ClientReport, Period, WeeklyDataPoint } from "@/types";
+import type {
+  ClientReport,
+  PipelineFunnelReport,
+  Period,
+  WeeklyDataPoint,
+  WeeklyPipelineDataPoint,
+} from "@/types";
 import { getClientBySlug } from "@/config/clients";
 import { getMetaInsights, getMetaWeeklyInsights, type MetaInsights } from "@/lib/meta";
 import {
   getAppointmentStats,
+  getPipelineFunnelStats,
   getSalesStats,
   getWeeklyAppointmentStats,
+  getWeeklyPipelineFunnelStats,
   getWeeklySalesStats,
 } from "@/lib/ghl";
 import { getWeekBuckets } from "@/lib/weeks";
@@ -198,6 +206,141 @@ export async function getClientTrends(
       closeRate: safeDivide(sales.closed, appt.shows),
       cac: safeDivide(meta.spend, sales.closed),
       roas: safeDivide(sales.closedRevenue, meta.spend),
+    };
+  });
+}
+
+/**
+ * GHL-only report for clients tracked entirely through one pipeline's
+ * stages + opportunity source (no Meta Ads) — see ClientConfig.customFunnel.
+ */
+export async function getPipelineFunnelReport(
+  slug: string,
+  period: Period
+): Promise<PipelineFunnelReport> {
+  const client = getClientBySlug(slug);
+  if (!client) {
+    throw new Error(`Unknown client slug: ${slug}`);
+  }
+  if (!client.customFunnel) {
+    throw new Error(`${slug} has no customFunnel config in config/clients.ts.`);
+  }
+
+  const warnings: string[] = [];
+
+  let funnel = {
+    leads: 0,
+    websiteLeads: 0,
+    quoteFollowUp: 0,
+    quotesSent: 0,
+    quotesSentRevenue: 0,
+    quoteYes: 0,
+    quoteYesRevenue: 0,
+    quoteNo: 0,
+    reviewing: 0,
+    shows: 0,
+  };
+  try {
+    funnel = await getPipelineFunnelStats(client, client.customFunnel, period);
+  } catch (err) {
+    console.error(`[metrics] GHL pipeline funnel fetch failed for ${slug}:`, err);
+    warnings.push("Couldn't load the sales pipeline from GHL.");
+  }
+
+  // "Appointments" (booked count) still comes from the GHL calendar — only
+  // "shows" is tracked via a pipeline stage instead of appointmentStatus.
+  let appointments = 0;
+  try {
+    const stats = await getAppointmentStats(client, period);
+    appointments = stats.appointments;
+  } catch (err) {
+    console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, err);
+    warnings.push("Couldn't load appointments from GHL.");
+  }
+
+  const shows = funnel.shows;
+  const decisions = funnel.quoteYes + funnel.quoteNo;
+
+  return {
+    period,
+    updatedAt: new Date().toISOString(),
+    warnings,
+    leads: funnel.leads,
+    websiteLeads: funnel.websiteLeads,
+    quoteFollowUp: funnel.quoteFollowUp,
+    quotesSent: funnel.quotesSent,
+    revenueOpportunity: funnel.quotesSentRevenue,
+    reviewing: funnel.reviewing,
+    decisions,
+    quoteYes: funnel.quoteYes,
+    quoteNo: funnel.quoteNo,
+    revenueClosed: funnel.quoteYesRevenue,
+    decisionRate: safeDivide(decisions, funnel.quotesSent),
+    yesRate: safeDivide(funnel.quoteYes, decisions),
+    noRate: safeDivide(funnel.quoteNo, decisions),
+    appointments,
+    shows,
+    showRate: safeDivide(shows, appointments),
+    closeRate: safeDivide(funnel.quoteYes, shows),
+  };
+}
+
+/** Week-by-week version of getPipelineFunnelReport, for the custom funnel's trend charts. */
+export async function getPipelineFunnelTrends(
+  slug: string,
+  weeks: number = 4
+): Promise<WeeklyPipelineDataPoint[]> {
+  const client = getClientBySlug(slug);
+  if (!client) {
+    throw new Error(`Unknown client slug: ${slug}`);
+  }
+  if (!client.customFunnel) {
+    throw new Error(`${slug} has no customFunnel config in config/clients.ts.`);
+  }
+
+  const buckets = getWeekBuckets(weeks);
+  const empty = {
+    leads: 0,
+    websiteLeads: 0,
+    quoteFollowUp: 0,
+    quotesSent: 0,
+    quotesSentRevenue: 0,
+    quoteYes: 0,
+    quoteYesRevenue: 0,
+    quoteNo: 0,
+    reviewing: 0,
+    shows: 0,
+  };
+
+  let weekly: Awaited<ReturnType<typeof getWeeklyPipelineFunnelStats>> = [];
+  try {
+    weekly = await getWeeklyPipelineFunnelStats(client, client.customFunnel, weeks);
+  } catch (err) {
+    console.error(`[metrics] GHL weekly pipeline funnel fetch failed for ${slug}:`, err);
+  }
+  const byWeek = new Map(weekly.map((w) => [w.weekIndex, w]));
+
+  return buckets.map((bucket) => {
+    const w = byWeek.get(bucket.index) ?? empty;
+    const decisions = w.quoteYes + w.quoteNo;
+
+    return {
+      weekLabel: bucket.label,
+      weekStart: bucket.start.toISOString(),
+      leads: w.leads,
+      websiteLeads: w.websiteLeads,
+      quoteFollowUp: w.quoteFollowUp,
+      quotesSent: w.quotesSent,
+      revenueOpportunity: w.quotesSentRevenue,
+      reviewing: w.reviewing,
+      decisions,
+      quoteYes: w.quoteYes,
+      quoteNo: w.quoteNo,
+      revenueClosed: w.quoteYesRevenue,
+      decisionRate: safeDivide(decisions, w.quotesSent),
+      yesRate: safeDivide(w.quoteYes, decisions),
+      noRate: safeDivide(w.quoteNo, decisions),
+      shows: w.shows,
     };
   });
 }

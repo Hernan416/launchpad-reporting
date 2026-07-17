@@ -1,4 +1,4 @@
-import type { ClientConfig, Period } from "@/types";
+import type { ClientConfig, CustomFunnelConfig, Period } from "@/types";
 import { bucketIndexForDate, getRangeMillis, getWeekBuckets } from "@/lib/weeks";
 
 const API_BASE = "https://services.leadconnectorhq.com";
@@ -37,6 +37,9 @@ interface Opportunity {
   pipelineStageId: string;
   monetaryValue?: number;
   lastStageChangeAt?: string;
+  createdAt?: string;
+  source?: string;
+  contactId?: string;
 }
 
 interface OpportunitiesSearchResponse {
@@ -235,10 +238,12 @@ async function fetchStageOpportunities(
   const all: Opportunity[] = [];
 
   for (;;) {
+    // /opportunities/search wants snake_case for these three params,
+    // unlike every other GHL endpoint here — confirmed against the live API.
     const data = await ghlFetch<OpportunitiesSearchResponse>(client, "/opportunities/search", {
-      locationId: client.ghlLocationId,
-      pipelineId,
-      pipelineStageId,
+      location_id: client.ghlLocationId,
+      pipeline_id: pipelineId,
+      pipeline_stage_id: pipelineStageId,
       date: String(startTime),
       endDate: String(endTime),
       page: String(page),
@@ -343,6 +348,269 @@ export async function getWeeklySalesStats(
     if (idx === null) continue;
     result[idx].closed += 1;
     result[idx].closedRevenue += opp.monetaryValue ?? 0;
+  }
+
+  return result;
+}
+
+export interface PipelineFunnelStats {
+  leads: number;
+  websiteLeads: number;
+  quoteFollowUp: number;
+  quotesSent: number;
+  quotesSentRevenue: number;
+  quoteYes: number;
+  quoteYesRevenue: number;
+  quoteNo: number;
+  reviewing: number;
+  shows: number;
+}
+
+interface ContactDetail {
+  id: string;
+  source?: string;
+}
+
+interface ContactResponse {
+  contact: ContactDetail;
+}
+
+async function fetchAllPipelineOpportunities(
+  client: ClientConfig,
+  pipelineId: string,
+  startTime: number,
+  endTime: number
+): Promise<Opportunity[]> {
+  const limit = 100;
+  let page = 1;
+  const all: Opportunity[] = [];
+
+  for (;;) {
+    const data = await ghlFetch<OpportunitiesSearchResponse>(client, "/opportunities/search", {
+      location_id: client.ghlLocationId,
+      pipeline_id: pipelineId,
+      date: String(startTime),
+      endDate: String(endTime),
+      page: String(page),
+      limit: String(limit),
+    });
+
+    const opportunities = data.opportunities ?? [];
+    all.push(...opportunities);
+
+    if (opportunities.length < limit || page >= MAX_OPPORTUNITY_PAGES) break;
+    page += 1;
+  }
+
+  return all;
+}
+
+/**
+ * The opportunity's own `source` field is usually null — the real lead
+ * source (e.g. "VELUX", "Website") lives on the linked contact instead.
+ */
+async function getContactSource(client: ClientConfig, contactId: string): Promise<string> {
+  const data = await ghlFetch<ContactResponse>(client, `/contacts/${contactId}`, {});
+  return data.contact?.source ?? "";
+}
+
+async function getPipelineByName(client: ClientConfig, name: string) {
+  const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
+    locationId: client.ghlLocationId,
+  });
+
+  const pipeline = data.pipelines.find((p) => p.name === name);
+  if (!pipeline) {
+    throw new Error(`${client.slug} has no GHL pipeline named "${name}".`);
+  }
+  return pipeline;
+}
+
+async function countOpportunitiesInPipelineStages(
+  client: ClientConfig,
+  pipeline: Pipeline,
+  stageNames: string[],
+  startTime: number,
+  endTime: number
+): Promise<number> {
+  const stageIds = pipeline.stages
+    .filter((s) => stageNames.includes(s.name))
+    .map((s) => s.id);
+
+  const perStage = await Promise.all(
+    stageIds.map((stageId) =>
+      fetchStageOpportunities(client, pipeline.id, stageId, startTime, endTime)
+    )
+  );
+
+  return perStage.reduce((sum, opps) => sum + opps.length, 0);
+}
+
+/**
+ * Bespoke funnel view for clients tracked entirely through one GHL
+ * pipeline's stages + the linked contact's `source` field, with no Meta
+ * Ads involvement (see ClientConfig.customFunnel). "Quotes Sent" is every
+ * opportunity that ever entered the pipeline (its first stage is the quote
+ * being sent), not a single current-stage snapshot. "Shows" is tracked as a
+ * stage in a *different* pipeline (showsPipelineName), not this one.
+ */
+export async function getPipelineFunnelStats(
+  client: ClientConfig,
+  config: CustomFunnelConfig,
+  period: Period
+): Promise<PipelineFunnelStats> {
+  const pipeline = await getPipelineByName(client, config.pipelineName);
+  const { startTime, endTime } = periodToRange(period);
+
+  const [opportunities, shows] = await Promise.all([
+    fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
+    getPipelineByName(client, config.showsPipelineName).then((showsPipeline) =>
+      countOpportunitiesInPipelineStages(
+        client,
+        showsPipeline,
+        config.showsStageNames,
+        startTime,
+        endTime
+      )
+    ),
+  ]);
+
+  const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
+  const inStages = (names: string[]) => {
+    const nameSet = new Set(names);
+    return opportunities.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
+  };
+
+  const uniqueContactIds = [
+    ...new Set(opportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
+  ];
+  const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
+  const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
+  const byContactSource = (match: string) =>
+    opportunities.filter((o) =>
+      (sourceByContactId.get(o.contactId ?? "") ?? "").toLowerCase().includes(match.toLowerCase())
+    );
+
+  const quoteYesOpps = inStages(config.quoteYesStageNames);
+
+  return {
+    leads: byContactSource(config.leadsSourceMatch).length,
+    websiteLeads: byContactSource(config.websiteLeadsSourceMatch).length,
+    quoteFollowUp: inStages(config.quoteFollowUpStageNames).length,
+    quotesSent: opportunities.length,
+    quotesSentRevenue: aggregateOpportunities(opportunities).revenue,
+    quoteYes: quoteYesOpps.length,
+    quoteYesRevenue: aggregateOpportunities(quoteYesOpps).revenue,
+    quoteNo: inStages(config.quoteNoStageNames).length,
+    reviewing: inStages(config.reviewingStageNames).length,
+    shows,
+  };
+}
+
+export interface WeeklyPipelineFunnelStats {
+  weekIndex: number;
+  leads: number;
+  websiteLeads: number;
+  quoteFollowUp: number;
+  quotesSent: number;
+  quotesSentRevenue: number;
+  quoteYes: number;
+  quoteYesRevenue: number;
+  quoteNo: number;
+  reviewing: number;
+  shows: number;
+}
+
+/**
+ * Week-by-week version of getPipelineFunnelStats. "Quotes Sent" (and the
+ * lead-source breakdown) is bucketed by when the opportunity was created —
+ * that's when the quote pipeline started for it. Stage-based counts (Quote
+ * Follow-up, Decisions, Reviewing) are bucketed by lastStageChangeAt, i.e.
+ * the week it reached its current status. Both pipelines are still fetched
+ * only once each for the whole range, not once per week.
+ */
+export async function getWeeklyPipelineFunnelStats(
+  client: ClientConfig,
+  config: CustomFunnelConfig,
+  weeks: number
+): Promise<WeeklyPipelineFunnelStats[]> {
+  const pipeline = await getPipelineByName(client, config.pipelineName);
+  const buckets = getWeekBuckets(weeks);
+  const { startTime, endTime } = getRangeMillis(weeks);
+
+  const [opportunities, showsPipeline] = await Promise.all([
+    fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
+    getPipelineByName(client, config.showsPipelineName),
+  ]);
+
+  const showsStageIds = new Set(
+    showsPipeline.stages.filter((s) => config.showsStageNames.includes(s.name)).map((s) => s.id)
+  );
+  const showsOpportunities = (
+    await fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime)
+  ).filter((o) => showsStageIds.has(o.pipelineStageId));
+
+  const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
+  const quoteFollowUpSet = new Set(config.quoteFollowUpStageNames);
+  const quoteYesSet = new Set(config.quoteYesStageNames);
+  const quoteNoSet = new Set(config.quoteNoStageNames);
+  const reviewingSet = new Set(config.reviewingStageNames);
+
+  const uniqueContactIds = [
+    ...new Set(opportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
+  ];
+  const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
+  const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
+
+  const result: WeeklyPipelineFunnelStats[] = buckets.map((b) => ({
+    weekIndex: b.index,
+    leads: 0,
+    websiteLeads: 0,
+    quoteFollowUp: 0,
+    quotesSent: 0,
+    quotesSentRevenue: 0,
+    quoteYes: 0,
+    quoteYesRevenue: 0,
+    quoteNo: 0,
+    reviewing: 0,
+    shows: 0,
+  }));
+
+  for (const opp of opportunities) {
+    const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
+    if (createdIdx !== null) {
+      result[createdIdx].quotesSent += 1;
+      result[createdIdx].quotesSentRevenue += opp.monetaryValue ?? 0;
+
+      const source = (sourceByContactId.get(opp.contactId ?? "") ?? "").toLowerCase();
+      if (source.includes(config.leadsSourceMatch.toLowerCase())) {
+        result[createdIdx].leads += 1;
+      }
+      if (source.includes(config.websiteLeadsSourceMatch.toLowerCase())) {
+        result[createdIdx].websiteLeads += 1;
+      }
+    }
+
+    const stageIdx = opp.lastStageChangeAt
+      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+      : null;
+    if (stageIdx === null) continue;
+    const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
+    if (quoteFollowUpSet.has(stageName)) result[stageIdx].quoteFollowUp += 1;
+    if (quoteYesSet.has(stageName)) {
+      result[stageIdx].quoteYes += 1;
+      result[stageIdx].quoteYesRevenue += opp.monetaryValue ?? 0;
+    }
+    if (quoteNoSet.has(stageName)) result[stageIdx].quoteNo += 1;
+    if (reviewingSet.has(stageName)) result[stageIdx].reviewing += 1;
+  }
+
+  for (const opp of showsOpportunities) {
+    const idx = opp.lastStageChangeAt
+      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+      : null;
+    if (idx === null) continue;
+    result[idx].shows += 1;
   }
 
   return result;

@@ -1,15 +1,22 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getClientBySlug } from "@/config/clients";
-import { getClientReport, getClientTrends } from "@/lib/metrics";
+import {
+  getClientReport,
+  getClientTrends,
+  getPipelineFunnelReport,
+  getPipelineFunnelTrends,
+} from "@/lib/metrics";
 import type { Period } from "@/types";
 import { DashboardShell } from "@/components/DashboardShell";
+import { ClientNav } from "@/components/ClientNav";
 import { PeriodToggle } from "@/components/PeriodToggle";
 import { MetricGroup } from "@/components/MetricGroup";
 import { MetricCard } from "@/components/MetricCard";
 import { HeadlineCard } from "@/components/HeadlineCard";
 import { ChartCard } from "@/components/ChartCard";
 import { WeeklyTable } from "@/components/WeeklyTable";
+import { PipelineFunnelDashboard } from "@/components/PipelineFunnelDashboard";
 import { AdSpendRevenueChart } from "@/components/charts/AdSpendRevenueChart";
 import { CacRoasChart } from "@/components/charts/CacRoasChart";
 import { CpcCtrChart } from "@/components/charts/CpcCtrChart";
@@ -55,13 +62,48 @@ export default async function ClientDashboardPage({
   }
 
   const period: Period = periodParam === "30d" ? "30d" : "7d";
+  const topNav =
+    session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;
+
+  // Clients with no Meta Ads involvement get a GHL-only dashboard built
+  // around their actual sales pipeline instead of the standard Meta+GHL report.
+  if (client.showMetaAds === false) {
+    const [funnelReport, funnelTrends] = await Promise.all([
+      getPipelineFunnelReport(clientSlug, period),
+      getPipelineFunnelTrends(clientSlug, TREND_WEEKS),
+    ]);
+
+    return (
+      <DashboardShell title={client.name} topNav={topNav}>
+        <div className="flex items-center justify-between">
+          <PeriodToggle slug={clientSlug} period={period} />
+          <p className="text-sm text-slate-500">
+            Updated: {new Date(funnelReport.updatedAt).toLocaleString("en-US")}
+          </p>
+        </div>
+
+        {funnelReport.warnings.length > 0 && (
+          <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <ul className="list-inside list-disc">
+              {funnelReport.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <PipelineFunnelDashboard report={funnelReport} trends={funnelTrends} />
+      </DashboardShell>
+    );
+  }
+
   const [report, trends] = await Promise.all([
     getClientReport(clientSlug, period),
     getClientTrends(clientSlug, TREND_WEEKS),
   ]);
 
   return (
-    <DashboardShell title={client.name}>
+    <DashboardShell title={client.name} topNav={topNav}>
       <div className="flex items-center justify-between">
         <PeriodToggle slug={clientSlug} period={period} />
         <p className="text-sm text-slate-500">

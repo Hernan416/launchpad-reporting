@@ -14,6 +14,7 @@ export const clients: ClientConfig[] = [
     slug: "excel-roofing",
     name: "Excel Roofing",
     metaAdAccountId: "act_1164351498761758",
+    showMetaAds: false,
     ghlLocationId: "ZwyTAT8frtRejAQJdN5N",
     // Roof Replacement (Phone Call), All Services - In Person Consultations, Solar Phone Call Consultation
     ghlCalendarIds: [
@@ -21,6 +22,24 @@ export const clients: ClientConfig[] = [
       "anHriWCEkHN3JJJ3g5qI",
       "f497SNJc1NkpQzyAMliB",
     ],
+    // Real pipeline "AI Quote Follow Up" — confirmed with the user 2026-07-16.
+    customFunnel: {
+      pipelineName: "AI Quote Follow Up",
+      leadsSourceMatch: "VELUX",
+      websiteLeadsSourceMatch: "website",
+      quoteFollowUpStageNames: [
+        "Active In Followup Sequence",
+        "Call Attempted - No Answer",
+        "Manual Follow Up Needed",
+      ],
+      quoteYesStageNames: ["Signed and closed"],
+      quoteNoStageNames: ["Quote Declined"],
+      reviewingStageNames: ["Spoke - Thinking/Reviewing", "Verbal Yes - Deposit Pending"],
+      // "Shows" isn't tracked via calendar appointmentStatus here — it's a stage in a different
+      // pipeline. Includes stages reached only after showing up (confirmed with the user 2026-07-16).
+      showsPipelineName: "Website Leads",
+      showsStageNames: ["Showed", "Need an Proposal", "Proposal sent/presented"],
+    },
   },
   {
     slug: "one-day-roofing",
