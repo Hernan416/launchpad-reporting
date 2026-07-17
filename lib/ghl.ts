@@ -1,4 +1,5 @@
 import type { ClientConfig, Period } from "@/types";
+import { bucketIndexForDate, getRangeMillis, getWeekBuckets } from "@/lib/weeks";
 
 const API_BASE = "https://services.leadconnectorhq.com";
 const API_VERSION = "2021-07-28";
@@ -10,6 +11,7 @@ const DEFAULT_CLOSED_STAGE = "Closed Won";
 
 interface CalendarEvent {
   appointmentStatus?: string;
+  startTime?: string;
 }
 
 interface CalendarEventsResponse {
@@ -33,6 +35,8 @@ interface PipelinesResponse {
 
 interface Opportunity {
   pipelineStageId: string;
+  monetaryValue?: number;
+  lastStageChangeAt?: string;
 }
 
 interface OpportunitiesSearchResponse {
@@ -47,8 +51,34 @@ export interface GhlAppointmentStats {
 
 export interface GhlSalesStats {
   quotesSent: number;
+  quotesSentRevenue: number;
   closed: number;
+  closedRevenue: number;
 }
+
+export interface WeeklyAppointmentStats {
+  weekIndex: number;
+  appointments: number;
+  shows: number;
+}
+
+export interface WeeklySalesStats {
+  weekIndex: number;
+  quotesSent: number;
+  quotesSentRevenue: number;
+  closed: number;
+  closedRevenue: number;
+}
+
+interface StageAggregate {
+  count: number;
+  revenue: number;
+}
+
+const EMPTY_STAGE_AGGREGATE: StageAggregate = { count: 0, revenue: 0 };
+
+/** Hard cap on pages fetched per stage (100/page) — a safety net against runaway pagination, not an expected real-world ceiling. */
+const MAX_OPPORTUNITY_PAGES = 20;
 
 /**
  * Env var name for a client's static GHL Private Integration Token, e.g.
@@ -95,21 +125,23 @@ function periodToRange(period: Period): { startTime: number; endTime: number } {
   return { startTime, endTime };
 }
 
-export async function getAppointmentStats(
-  client: ClientConfig,
-  period: Period
-): Promise<GhlAppointmentStats> {
+function requireCalendarIds(client: ClientConfig): string[] {
   if (!client.ghlCalendarIds || client.ghlCalendarIds.length === 0) {
     throw new Error(
       `${client.slug} is missing ghlCalendarIds in config/clients.ts — required by GET /calendars/events.`
     );
   }
+  return client.ghlCalendarIds;
+}
 
-  const { startTime, endTime } = periodToRange(period);
-  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
-
+async function fetchCalendarEvents(
+  client: ClientConfig,
+  calendarIds: string[],
+  startTime: number,
+  endTime: number
+): Promise<CalendarEvent[]> {
   const perCalendar = await Promise.all(
-    client.ghlCalendarIds.map((calendarId) =>
+    calendarIds.map((calendarId) =>
       ghlFetch<CalendarEventsResponse>(client, "/calendars/events", {
         locationId: client.ghlLocationId,
         calendarId,
@@ -119,12 +151,51 @@ export async function getAppointmentStats(
     )
   );
 
-  const events = perCalendar.flatMap((data) => data.events ?? []);
+  return perCalendar.flatMap((data) => data.events ?? []);
+}
+
+export async function getAppointmentStats(
+  client: ClientConfig,
+  period: Period
+): Promise<GhlAppointmentStats> {
+  const calendarIds = requireCalendarIds(client);
+  const { startTime, endTime } = periodToRange(period);
+  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
+
+  const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
 
   return {
     appointments: events.length,
     shows: events.filter((e) => e.appointmentStatus === showStatus).length,
   };
+}
+
+export async function getWeeklyAppointmentStats(
+  client: ClientConfig,
+  weeks: number
+): Promise<WeeklyAppointmentStats[]> {
+  const calendarIds = requireCalendarIds(client);
+  const buckets = getWeekBuckets(weeks);
+  const { startTime, endTime } = getRangeMillis(weeks);
+  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
+
+  const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
+
+  const result: WeeklyAppointmentStats[] = buckets.map((b) => ({
+    weekIndex: b.index,
+    appointments: 0,
+    shows: 0,
+  }));
+
+  for (const event of events) {
+    if (!event.startTime) continue;
+    const idx = bucketIndexForDate(new Date(event.startTime), buckets);
+    if (idx === null) continue;
+    result[idx].appointments += 1;
+    if (event.appointmentStatus === showStatus) result[idx].shows += 1;
+  }
+
+  return result;
 }
 
 async function findStageIds(
@@ -152,23 +223,60 @@ async function findStageIds(
   };
 }
 
-async function countOpportunitiesInStage(
+async function fetchStageOpportunities(
+  client: ClientConfig,
+  pipelineId: string,
+  pipelineStageId: string,
+  startTime: number,
+  endTime: number
+): Promise<Opportunity[]> {
+  const limit = 100;
+  let page = 1;
+  const all: Opportunity[] = [];
+
+  for (;;) {
+    const data = await ghlFetch<OpportunitiesSearchResponse>(client, "/opportunities/search", {
+      locationId: client.ghlLocationId,
+      pipelineId,
+      pipelineStageId,
+      date: String(startTime),
+      endDate: String(endTime),
+      page: String(page),
+      limit: String(limit),
+    });
+
+    const opportunities = data.opportunities ?? [];
+    all.push(...opportunities);
+
+    if (opportunities.length < limit || page >= MAX_OPPORTUNITY_PAGES) break;
+    page += 1;
+  }
+
+  return all;
+}
+
+function aggregateOpportunities(opportunities: Opportunity[]): StageAggregate {
+  return {
+    count: opportunities.length,
+    revenue: opportunities.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0),
+  };
+}
+
+async function getStageAggregate(
   client: ClientConfig,
   pipelineId: string,
   pipelineStageId: string,
   period: Period
-): Promise<number> {
+): Promise<StageAggregate> {
   const { startTime, endTime } = periodToRange(period);
-  const data = await ghlFetch<OpportunitiesSearchResponse>(client, "/opportunities/search", {
-    locationId: client.ghlLocationId,
+  const opportunities = await fetchStageOpportunities(
+    client,
     pipelineId,
     pipelineStageId,
-    date: String(startTime),
-    endDate: String(endTime),
-    limit: "100",
-  });
-
-  return data.meta?.total ?? data.opportunities.length;
+    startTime,
+    endTime
+  );
+  return aggregateOpportunities(opportunities);
 }
 
 export async function getSalesStats(
@@ -177,14 +285,65 @@ export async function getSalesStats(
 ): Promise<GhlSalesStats> {
   const { pipelineId, quoteSentStageId, closedStageId } = await findStageIds(client);
 
-  const [quotesSent, closed] = await Promise.all([
+  const [quoteAgg, closedAgg] = await Promise.all([
     quoteSentStageId
-      ? countOpportunitiesInStage(client, pipelineId, quoteSentStageId, period)
-      : Promise.resolve(0),
+      ? getStageAggregate(client, pipelineId, quoteSentStageId, period)
+      : Promise.resolve(EMPTY_STAGE_AGGREGATE),
     closedStageId
-      ? countOpportunitiesInStage(client, pipelineId, closedStageId, period)
-      : Promise.resolve(0),
+      ? getStageAggregate(client, pipelineId, closedStageId, period)
+      : Promise.resolve(EMPTY_STAGE_AGGREGATE),
   ]);
 
-  return { quotesSent, closed };
+  return {
+    quotesSent: quoteAgg.count,
+    quotesSentRevenue: quoteAgg.revenue,
+    closed: closedAgg.count,
+    closedRevenue: closedAgg.revenue,
+  };
+}
+
+export async function getWeeklySalesStats(
+  client: ClientConfig,
+  weeks: number
+): Promise<WeeklySalesStats[]> {
+  const { pipelineId, quoteSentStageId, closedStageId } = await findStageIds(client);
+  const buckets = getWeekBuckets(weeks);
+  const { startTime, endTime } = getRangeMillis(weeks);
+
+  const [quoteOpps, closedOpps] = await Promise.all([
+    quoteSentStageId
+      ? fetchStageOpportunities(client, pipelineId, quoteSentStageId, startTime, endTime)
+      : Promise.resolve([]),
+    closedStageId
+      ? fetchStageOpportunities(client, pipelineId, closedStageId, startTime, endTime)
+      : Promise.resolve([]),
+  ]);
+
+  const result: WeeklySalesStats[] = buckets.map((b) => ({
+    weekIndex: b.index,
+    quotesSent: 0,
+    quotesSentRevenue: 0,
+    closed: 0,
+    closedRevenue: 0,
+  }));
+
+  for (const opp of quoteOpps) {
+    const idx = opp.lastStageChangeAt
+      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+      : null;
+    if (idx === null) continue;
+    result[idx].quotesSent += 1;
+    result[idx].quotesSentRevenue += opp.monetaryValue ?? 0;
+  }
+
+  for (const opp of closedOpps) {
+    const idx = opp.lastStageChangeAt
+      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+      : null;
+    if (idx === null) continue;
+    result[idx].closed += 1;
+    result[idx].closedRevenue += opp.monetaryValue ?? 0;
+  }
+
+  return result;
 }

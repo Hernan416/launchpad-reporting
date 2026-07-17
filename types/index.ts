@@ -53,9 +53,46 @@ export interface SalesMetrics {
   cac: number;
 }
 
+export interface HeadlineMetrics {
+  revenueClosed: number;
+  cac: number;
+  roas: number;
+  adSpend: number;
+  costPerAppointment: number;
+  revenueOpportunity: number;
+  closeRate: number;
+  closedCount: number;
+  shownCount: number;
+}
+
+export interface WeeklyDataPoint {
+  weekLabel: string;
+  weekStart: string;
+  adSpend: number;
+  leads: number;
+  cpc: number;
+  ctr: number;
+  costPerLead: number;
+  landingPageViews: number;
+  optInRate: number;
+  appointments: number;
+  shows: number;
+  showRate: number;
+  costPerAppointment: number;
+  costPerShownAppt: number;
+  quotesSent: number;
+  revenueOpportunity: number;
+  closed: number;
+  revenueClosed: number;
+  closeRate: number;
+  cac: number;
+  roas: number;
+}
+
 export interface ClientReport {
   period: Period;
   updatedAt: string;
+  headline: HeadlineMetrics;
   meta: MetaMetrics;
   funnel: FunnelMetrics;
   sales: SalesMetrics;

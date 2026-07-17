@@ -18,3 +18,7 @@ export function formatNumber(value: number): string {
     value
   );
 }
+
+export function formatMultiplier(value: number): string {
+  return `${value.toFixed(2)}x`;
+}
