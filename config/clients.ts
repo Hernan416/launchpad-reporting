@@ -43,6 +43,13 @@ export const clients: ClientConfig[] = [
     // quote) and in "AI Quote Follow Up" (already got the quote) — their counts
     // are summed, not deduplicated, to get total leads and the source breakdown.
     // Contacts with no source at all are assumed to be from the website.
+    //
+    // Roofr is a distinct case (confirmed 2026-07-25): those leads go directly
+    // into "AI Quote Follow Up" and never pass through "Website Leads" at all,
+    // so they're tracked separately (directQuoteLeads) instead of being folded
+    // into leadsBySource — checked against BOTH the contact's and the
+    // opportunity's own source field, since Roofr-originated opportunities
+    // don't reliably carry the source on one or the other.
     customFunnel: {
       pipelineName: "AI Quote Follow Up",
       showsPipelineName: "Website Leads",
@@ -50,10 +57,10 @@ export const clients: ClientConfig[] = [
         { key: "velux", label: "VELUX" },
         { key: "instantestimator", label: "Instant Estimator" },
         { key: "inboundcall", label: "Inbound Calls" },
-        { key: "roofr", label: "Roofr" },
         { key: "website", label: "Website" },
       ],
       defaultSourceLabel: "Website",
+      directQuoteSourceMatch: "Roofr",
       quoteYesStageNames: ["Signed and closed"],
       quoteNoStageNames: ["Quote Declined"],
       reviewingStageNames: ["Spoke - Thinking/Reviewing"],

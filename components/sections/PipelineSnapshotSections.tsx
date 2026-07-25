@@ -45,6 +45,11 @@ export async function PipelineSnapshotSections({
 
       <MetricGroup title="Quotes" accent="gold">
         <MetricCard accent="gold" label="Quotes Sent" value={formatNumber(report.quotesSent)} />
+        <MetricCard
+          accent="gold"
+          label="Roofr (Direct Quotes)"
+          value={formatNumber(report.directQuoteLeads)}
+        />
         <MetricCard accent="gold" label="Quote - Yes" value={formatNumber(report.quoteYes)} />
         <MetricCard accent="gold" label="Quote - No" value={formatNumber(report.quoteNo)} />
         <MetricCard accent="gold" label="Reviewing" value={formatNumber(report.reviewing)} />

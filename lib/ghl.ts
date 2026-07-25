@@ -356,6 +356,7 @@ export async function getWeeklySalesStats(
 export interface PipelineFunnelStats {
   totalLeads: number;
   leadsBySource: LeadSourceCount[];
+  directQuoteLeads: number;
   quotesSent: number;
   quoteYes: number;
   quoteNo: number;
@@ -454,6 +455,20 @@ function countBySource(
     .sort((a, b) => b.count - a.count);
 }
 
+/**
+ * Some leads (e.g. Roofr referrals) go straight into the quote-follow-up
+ * pipeline and never pass through the appointment-booking pipeline at all —
+ * checked against BOTH the opportunity's own `source` and its contact's
+ * `source`, since which one actually carries the value isn't consistent.
+ */
+function isDirectQuoteSource(opp: Opportunity, contactSource: string, match: string): boolean {
+  const normalizedMatch = normalizeSource(match);
+  return (
+    normalizeSource(opp.source ?? "").includes(normalizedMatch) ||
+    normalizeSource(contactSource).includes(normalizedMatch)
+  );
+}
+
 async function getPipelineByName(client: ClientConfig, name: string) {
   const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
     locationId: client.ghlLocationId,
@@ -517,9 +532,21 @@ export async function getPipelineFunnelStats(
   const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
   const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
 
+  const directQuoteOpps: Opportunity[] = [];
+  const sourceOpps: Opportunity[] = [];
+  for (const opp of allLeadOpportunities) {
+    const contactSource = sourceByContactId.get(opp.contactId ?? "") ?? "";
+    if (isDirectQuoteSource(opp, contactSource, config.directQuoteSourceMatch)) {
+      directQuoteOpps.push(opp);
+    } else {
+      sourceOpps.push(opp);
+    }
+  }
+
   return {
     totalLeads: allLeadOpportunities.length,
-    leadsBySource: countBySource(allLeadOpportunities, sourceByContactId, config),
+    leadsBySource: countBySource(sourceOpps, sourceByContactId, config),
+    directQuoteLeads: directQuoteOpps.length,
     quotesSent: quoteOpportunities.length,
     quoteYes: inQuoteStages(config.quoteYesStageNames).length,
     quoteNo: inQuoteStages(config.quoteNoStageNames).length,
@@ -534,6 +561,7 @@ export interface WeeklyPipelineFunnelStats {
   weekIndex: number;
   totalLeads: number;
   leadsBySource: LeadSourceCount[];
+  directQuoteLeads: number;
   quotesSent: number;
   quoteYes: number;
   quoteNo: number;
@@ -588,6 +616,7 @@ export async function getWeeklyPipelineFunnelStats(
     weekIndex: b.index,
     totalLeads: 0,
     leadsBySource: [],
+    directQuoteLeads: 0,
     quotesSent: 0,
     quoteYes: 0,
     quoteNo: 0,
@@ -596,16 +625,22 @@ export async function getWeeklyPipelineFunnelStats(
     appointmentsCancelled: 0,
     appointmentsLost: 0,
   }));
-  const leadOppsByWeek: Opportunity[][] = buckets.map(() => []);
+  const sourceOppsByWeek: Opportunity[][] = buckets.map(() => []);
 
   for (const opp of allLeadOpportunities) {
     const idx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
     if (idx === null) continue;
     result[idx].totalLeads += 1;
-    leadOppsByWeek[idx].push(opp);
+
+    const contactSource = sourceByContactId.get(opp.contactId ?? "") ?? "";
+    if (isDirectQuoteSource(opp, contactSource, config.directQuoteSourceMatch)) {
+      result[idx].directQuoteLeads += 1;
+    } else {
+      sourceOppsByWeek[idx].push(opp);
+    }
   }
   result.forEach((r, i) => {
-    r.leadsBySource = countBySource(leadOppsByWeek[i], sourceByContactId, config);
+    r.leadsBySource = countBySource(sourceOppsByWeek[i], sourceByContactId, config);
   });
 
   for (const opp of quoteOpportunities) {

@@ -225,6 +225,7 @@ export async function getPipelineFunnelReport(
   let funnel = {
     totalLeads: 0,
     leadsBySource: [] as LeadSourceCount[],
+    directQuoteLeads: 0,
     quotesSent: 0,
     quoteYes: 0,
     quoteNo: 0,
@@ -248,6 +249,7 @@ export async function getPipelineFunnelReport(
     warnings,
     totalLeads: funnel.totalLeads,
     leadsBySource: funnel.leadsBySource,
+    directQuoteLeads: funnel.directQuoteLeads,
     quotesSent: funnel.quotesSent,
     quoteYes: funnel.quoteYes,
     quoteNo: funnel.quoteNo,
@@ -279,6 +281,7 @@ export async function getPipelineFunnelTrends(
   const empty = {
     totalLeads: 0,
     leadsBySource: [] as LeadSourceCount[],
+    directQuoteLeads: 0,
     quotesSent: 0,
     quoteYes: 0,
     quoteNo: 0,
@@ -305,6 +308,7 @@ export async function getPipelineFunnelTrends(
       weekStart: bucket.start.toISOString(),
       totalLeads: w.totalLeads,
       leadsBySource: w.leadsBySource,
+      directQuoteLeads: w.directQuoteLeads,
       quotesSent: w.quotesSent,
       quoteYes: w.quoteYes,
       quoteNo: w.quoteNo,

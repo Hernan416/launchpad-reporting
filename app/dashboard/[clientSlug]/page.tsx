@@ -75,7 +75,7 @@ export default async function ClientDashboardPage({
           fallback={
             <div className="space-y-8">
               <CardGridSkeleton count={4} accent="blue" />
-              <CardGridSkeleton count={7} accent="gold" />
+              <CardGridSkeleton count={8} accent="gold" />
               <CardGridSkeleton count={3} accent="blue" />
             </div>
           }

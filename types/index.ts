@@ -29,6 +29,8 @@ export interface CustomFunnelConfig {
   leadSources: LeadSourceRule[];
   /** Bucket for contacts with no source value at all. */
   defaultSourceLabel: string;
+  /** Leads whose contact OR opportunity `source` matches this (e.g. "Roofr") go straight into pipelineName without ever passing through showsPipelineName — tracked as directQuoteLeads instead of being folded into leadsBySource. */
+  directQuoteSourceMatch: string;
   quoteYesStageNames: string[];
   quoteNoStageNames: string[];
   reviewingStageNames: string[];
@@ -140,6 +142,7 @@ export interface PipelineFunnelReport {
   warnings: string[];
   totalLeads: number;
   leadsBySource: LeadSourceCount[];
+  directQuoteLeads: number;
   quotesSent: number;
   quoteYes: number;
   quoteNo: number;
@@ -158,6 +161,7 @@ export interface WeeklyPipelineDataPoint {
   weekStart: string;
   totalLeads: number;
   leadsBySource: LeadSourceCount[];
+  directQuoteLeads: number;
   quotesSent: number;
   quoteYes: number;
   quoteNo: number;
