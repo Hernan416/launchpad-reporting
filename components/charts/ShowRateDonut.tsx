@@ -4,7 +4,7 @@ import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recha
 import type { WeeklyDataPoint } from "@/types";
 import { ACCENT_HEX } from "@/lib/accents";
 
-const COLORS = [ACCENT_HEX.emerald.strong, "#cbd5e1"];
+const COLORS = [ACCENT_HEX.blue.strong, "#cbd5e1"];
 
 export function ShowRateDonut({ data }: { data: WeeklyDataPoint[] }) {
   const totalShows = data.reduce((sum, d) => sum + d.shows, 0);

@@ -22,23 +22,45 @@ export const clients: ClientConfig[] = [
       "anHriWCEkHN3JJJ3g5qI",
       "f497SNJc1NkpQzyAMliB",
     ],
-    // Real pipeline "AI Quote Follow Up" — confirmed with the user 2026-07-16.
+    // Real "AI Quote Follow Up" pipeline flow, confirmed with the user 2026-07-17
+    // (full stage-by-stage business logic, not a guess):
+    // - Opportunity created at "Proposal Just Sent" when quote follow-up starts,
+    //   then settles at "Active In Followup Sequence" once the bot is actively
+    //   working it — "Quotes Sent" = every opportunity ever created here,
+    //   regardless of current stage.
+    // - "Spoke - Thinking/Reviewing": sales team marks this when the client says
+    //   they're still thinking it over.
+    // - "Verbal Yes - Deposit Pending": lead said yes (tag quote_accepted) but
+    //   hasn't actually signed yet. Deliberately NOT counted as Quote-Yes
+    //   (confirmed) — only "Signed and closed" (tag quote_signed, set once
+    //   actually signed in Roofr) counts as a real close.
+    // - "Call Attempted - No Answer" and "Manual Follow Up Needed" are confirmed
+    //   UNUSED stages (legacy), same as "Unresponsive - Sequence Finished" (the
+    //   36-day timeout stage) — none of the three feed any dashboard column.
+    //
+    // Leads are tracked across BOTH pipelines (confirmed 2026-07-24): a lead can
+    // independently exist in "Website Leads" (booking an appointment to get a
+    // quote) and in "AI Quote Follow Up" (already got the quote) — their counts
+    // are summed, not deduplicated, to get total leads and the source breakdown.
+    // Contacts with no source at all are assumed to be from the website.
     customFunnel: {
       pipelineName: "AI Quote Follow Up",
-      leadsSourceMatch: "VELUX",
-      websiteLeadsSourceMatch: "website",
-      quoteFollowUpStageNames: [
-        "Active In Followup Sequence",
-        "Call Attempted - No Answer",
-        "Manual Follow Up Needed",
+      showsPipelineName: "Website Leads",
+      leadSources: [
+        { key: "velux", label: "VELUX" },
+        { key: "instantestimator", label: "Instant Estimator" },
+        { key: "inboundcall", label: "Inbound Calls" },
+        { key: "roofr", label: "Roofr" },
+        { key: "website", label: "Website" },
       ],
+      defaultSourceLabel: "Website",
       quoteYesStageNames: ["Signed and closed"],
       quoteNoStageNames: ["Quote Declined"],
-      reviewingStageNames: ["Spoke - Thinking/Reviewing", "Verbal Yes - Deposit Pending"],
-      // "Shows" isn't tracked via calendar appointmentStatus here — it's a stage in a different
-      // pipeline. Includes stages reached only after showing up (confirmed with the user 2026-07-16).
-      showsPipelineName: "Website Leads",
-      showsStageNames: ["Showed", "Need an Proposal", "Proposal sent/presented"],
+      reviewingStageNames: ["Spoke - Thinking/Reviewing"],
+      // Real "Website Leads" stage names confirmed via the GHL API 2026-07-24.
+      bookedStageNames: ["Appointment Booked"],
+      cancelledStageNames: ["Cancelled"],
+      lostStageNames: ["Lost"],
     },
   },
   {

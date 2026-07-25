@@ -6,7 +6,7 @@ export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full min-w-[900px] text-left text-sm">
         <thead>
-          <tr className="bg-blue-50 text-blue-900">
+          <tr className="bg-[#0067eb]/10 text-[#003d78]">
             <th className="px-4 py-3 font-semibold">Week</th>
             <th className="px-4 py-3 font-semibold">Ad Spend</th>
             <th className="px-4 py-3 font-semibold">Leads</th>
@@ -35,7 +35,7 @@ export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
               <td className="px-4 py-3">{formatNumber(week.shows)}</td>
               <td className="px-4 py-3">{formatNumber(week.quotesSent)}</td>
               <td className="px-4 py-3">{formatNumber(week.closed)}</td>
-              <td className="px-4 py-3 font-semibold text-blue-700">
+              <td className="px-4 py-3 font-semibold text-[#8a6d00]">
                 {formatCurrency(week.revenueClosed)}
               </td>
               <td className="px-4 py-3">{formatCurrency(week.cac)}</td>

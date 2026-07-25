@@ -11,9 +11,9 @@ import {
   YAxis,
 } from "recharts";
 import type { WeeklyDataPoint } from "@/types";
-import { ACCENT_HEX } from "@/lib/accents";
+import { ACCENT_HEX, CHART_GRID_STROKE, CHART_TICK } from "@/lib/accents";
 
-const { strong, soft } = ACCENT_HEX.emerald;
+const { strong, soft } = ACCENT_HEX.blue;
 
 export function CloseRateChart({ data }: { data: WeeklyDataPoint[] }) {
   const chartData = data.map((d) => ({
@@ -25,10 +25,10 @@ export function CloseRateChart({ data }: { data: WeeklyDataPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis dataKey="weekLabel" tick={{ fontSize: 12, fill: "#64748b" }} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+        <XAxis dataKey="weekLabel" tick={CHART_TICK} />
         <YAxis
-          tick={{ fontSize: 12, fill: "#64748b" }}
+          tick={CHART_TICK}
           tickFormatter={(v: number) => `${v}%`}
           domain={[0, 100]}
         />

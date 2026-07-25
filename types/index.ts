@@ -9,18 +9,33 @@ export interface AppUser {
   name?: string;
 }
 
+export interface LeadSourceRule {
+  /** Matched as a substring against the contact's `source` field, normalized (lowercased, separators stripped) — so "Instant_Estimator" / "Instant Estimator" / "instant-estimator" all match `key: "instantestimator"`. */
+  key: string;
+  label: string;
+}
+
+export interface LeadSourceCount {
+  label: string;
+  count: number;
+}
+
 export interface CustomFunnelConfig {
+  /** Quote-follow-up pipeline — only leads who already got a quote sent end up here. */
   pipelineName: string;
-  /** Case-insensitive substring match against the opportunity's contact's `source` field. */
-  leadsSourceMatch: string;
-  websiteLeadsSourceMatch: string;
-  quoteFollowUpStageNames: string[];
+  /** Leads/appointments pipeline — every incoming lead gets an opportunity here, regardless of how far they get. Its opportunity count is summed with pipelineName's to get total leads, since a lead can independently exist in both. */
+  showsPipelineName: string;
+  /** Known source patterns, checked in order; a contact source not matching any rule is shown under its own raw label instead of being dropped. */
+  leadSources: LeadSourceRule[];
+  /** Bucket for contacts with no source value at all. */
+  defaultSourceLabel: string;
   quoteYesStageNames: string[];
   quoteNoStageNames: string[];
   reviewingStageNames: string[];
-  /** "Shows" are tracked as a stage in a different pipeline than the one above. */
-  showsPipelineName: string;
-  showsStageNames: string[];
+  /** Stage names within showsPipelineName. */
+  bookedStageNames: string[];
+  cancelledStageNames: string[];
+  lostStageNames: string[];
 }
 
 export interface ClientConfig {
@@ -123,40 +138,35 @@ export interface PipelineFunnelReport {
   period: Period;
   updatedAt: string;
   warnings: string[];
-  leads: number;
-  websiteLeads: number;
-  quoteFollowUp: number;
+  totalLeads: number;
+  leadsBySource: LeadSourceCount[];
   quotesSent: number;
-  revenueOpportunity: number;
-  reviewing: number;
-  decisions: number;
   quoteYes: number;
   quoteNo: number;
-  revenueClosed: number;
+  reviewing: number;
+  decisions: number;
   decisionRate: number;
   yesRate: number;
   noRate: number;
-  appointments: number;
-  shows: number;
-  showRate: number;
-  closeRate: number;
+  appointmentsBooked: number;
+  appointmentsCancelled: number;
+  appointmentsLost: number;
 }
 
 export interface WeeklyPipelineDataPoint {
   weekLabel: string;
   weekStart: string;
-  leads: number;
-  websiteLeads: number;
-  quoteFollowUp: number;
+  totalLeads: number;
+  leadsBySource: LeadSourceCount[];
   quotesSent: number;
-  revenueOpportunity: number;
-  reviewing: number;
-  decisions: number;
   quoteYes: number;
   quoteNo: number;
-  revenueClosed: number;
+  reviewing: number;
+  decisions: number;
   decisionRate: number;
   yesRate: number;
   noRate: number;
-  shows: number;
+  appointmentsBooked: number;
+  appointmentsCancelled: number;
+  appointmentsLost: number;
 }

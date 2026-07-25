@@ -1,4 +1,4 @@
-import type { ClientConfig, CustomFunnelConfig, Period } from "@/types";
+import type { ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
 import { bucketIndexForDate, getRangeMillis, getWeekBuckets } from "@/lib/weeks";
 
 const API_BASE = "https://services.leadconnectorhq.com";
@@ -354,16 +354,15 @@ export async function getWeeklySalesStats(
 }
 
 export interface PipelineFunnelStats {
-  leads: number;
-  websiteLeads: number;
-  quoteFollowUp: number;
+  totalLeads: number;
+  leadsBySource: LeadSourceCount[];
   quotesSent: number;
-  quotesSentRevenue: number;
   quoteYes: number;
-  quoteYesRevenue: number;
   quoteNo: number;
   reviewing: number;
-  shows: number;
+  appointmentsBooked: number;
+  appointmentsCancelled: number;
+  appointmentsLost: number;
 }
 
 interface ContactDetail {
@@ -414,6 +413,47 @@ async function getContactSource(client: ClientConfig, contactId: string): Promis
   return data.contact?.source ?? "";
 }
 
+/** Lowercases and strips separators so "Instant_Estimator" / "Instant Estimator" / "instant-estimator" all compare equal. */
+function normalizeSource(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Maps a raw contact `source` value to a display label using the client's
+ * known LeadSourceRules. A non-empty source that matches no rule is shown
+ * under its own raw label instead of being silently dropped — so a brand
+ * new source (e.g. a future ad platform) still shows up as "all sources"
+ * rather than disappearing from the dashboard.
+ */
+function categorizeSource(
+  rawSource: string,
+  leadSources: { key: string; label: string }[],
+  defaultSourceLabel: string
+): string {
+  const normalized = normalizeSource(rawSource);
+  if (!normalized) return defaultSourceLabel;
+  for (const rule of leadSources) {
+    if (normalized.includes(rule.key)) return rule.label;
+  }
+  return rawSource;
+}
+
+function countBySource(
+  opportunities: Opportunity[],
+  sourceByContactId: Map<string, string>,
+  config: CustomFunnelConfig
+): LeadSourceCount[] {
+  const counts = new Map<string, number>();
+  for (const opp of opportunities) {
+    const raw = sourceByContactId.get(opp.contactId ?? "") ?? "";
+    const label = categorizeSource(raw, config.leadSources, config.defaultSourceLabel);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 async function getPipelineByName(client: ClientConfig, name: string) {
   const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
     locationId: client.ghlLocationId,
@@ -426,191 +466,171 @@ async function getPipelineByName(client: ClientConfig, name: string) {
   return pipeline;
 }
 
-async function countOpportunitiesInPipelineStages(
-  client: ClientConfig,
-  pipeline: Pipeline,
-  stageNames: string[],
-  startTime: number,
-  endTime: number
-): Promise<number> {
-  const stageIds = pipeline.stages
-    .filter((s) => stageNames.includes(s.name))
-    .map((s) => s.id);
-
-  const perStage = await Promise.all(
-    stageIds.map((stageId) =>
-      fetchStageOpportunities(client, pipeline.id, stageId, startTime, endTime)
-    )
-  );
-
-  return perStage.reduce((sum, opps) => sum + opps.length, 0);
-}
-
 /**
- * Bespoke funnel view for clients tracked entirely through one GHL
- * pipeline's stages + the linked contact's `source` field, with no Meta
- * Ads involvement (see ClientConfig.customFunnel). "Quotes Sent" is every
- * opportunity that ever entered the pipeline (its first stage is the quote
- * being sent), not a single current-stage snapshot. "Shows" is tracked as a
- * stage in a *different* pipeline (showsPipelineName), not this one.
+ * Bespoke funnel view for clients tracked entirely through GHL pipeline
+ * stages + the linked contact's `source` field, with no Meta Ads
+ * involvement (see ClientConfig.customFunnel). Two pipelines are involved:
+ * - `pipelineName` ("AI Quote Follow Up"): only leads who already got a
+ *   quote sent end up here. "Quotes Sent" is every opportunity that ever
+ *   entered it (its first stage is the quote being sent), not a
+ *   current-stage snapshot.
+ * - `showsPipelineName` ("Website Leads"): every incoming lead gets an
+ *   opportunity here regardless of how far they get — this is where
+ *   appointments (Booked/Cancelled/Lost) are tracked as a stage snapshot.
+ * A lead can independently exist in both pipelines (one pipeline is "booking
+ * an appointment to get a quote", the other is "already has the quote"), so
+ * totalLeads and the source breakdown sum both pipelines' opportunities
+ * rather than deduplicating by contact (confirmed with the user 2026-07-24).
  */
 export async function getPipelineFunnelStats(
   client: ClientConfig,
   config: CustomFunnelConfig,
   period: Period
 ): Promise<PipelineFunnelStats> {
-  const pipeline = await getPipelineByName(client, config.pipelineName);
+  const [pipeline, showsPipeline] = await Promise.all([
+    getPipelineByName(client, config.pipelineName),
+    getPipelineByName(client, config.showsPipelineName),
+  ]);
   const { startTime, endTime } = periodToRange(period);
 
-  const [opportunities, shows] = await Promise.all([
+  const [quoteOpportunities, leadOpportunities] = await Promise.all([
     fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
-    getPipelineByName(client, config.showsPipelineName).then((showsPipeline) =>
-      countOpportunitiesInPipelineStages(
-        client,
-        showsPipeline,
-        config.showsStageNames,
-        startTime,
-        endTime
-      )
-    ),
+    fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime),
   ]);
 
   const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
-  const inStages = (names: string[]) => {
+  const inQuoteStages = (names: string[]) => {
     const nameSet = new Set(names);
-    return opportunities.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
+    return quoteOpportunities.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
   };
 
+  const showsStageNameById = new Map(showsPipeline.stages.map((s) => [s.id, s.name]));
+  const inShowsStages = (names: string[]) => {
+    const nameSet = new Set(names);
+    return leadOpportunities.filter((o) => nameSet.has(showsStageNameById.get(o.pipelineStageId) ?? ""));
+  };
+
+  const allLeadOpportunities = [...leadOpportunities, ...quoteOpportunities];
   const uniqueContactIds = [
-    ...new Set(opportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
+    ...new Set(allLeadOpportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
   ];
   const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
   const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
-  const byContactSource = (match: string) =>
-    opportunities.filter((o) =>
-      (sourceByContactId.get(o.contactId ?? "") ?? "").toLowerCase().includes(match.toLowerCase())
-    );
-
-  const quoteYesOpps = inStages(config.quoteYesStageNames);
 
   return {
-    leads: byContactSource(config.leadsSourceMatch).length,
-    websiteLeads: byContactSource(config.websiteLeadsSourceMatch).length,
-    quoteFollowUp: inStages(config.quoteFollowUpStageNames).length,
-    quotesSent: opportunities.length,
-    quotesSentRevenue: aggregateOpportunities(opportunities).revenue,
-    quoteYes: quoteYesOpps.length,
-    quoteYesRevenue: aggregateOpportunities(quoteYesOpps).revenue,
-    quoteNo: inStages(config.quoteNoStageNames).length,
-    reviewing: inStages(config.reviewingStageNames).length,
-    shows,
+    totalLeads: allLeadOpportunities.length,
+    leadsBySource: countBySource(allLeadOpportunities, sourceByContactId, config),
+    quotesSent: quoteOpportunities.length,
+    quoteYes: inQuoteStages(config.quoteYesStageNames).length,
+    quoteNo: inQuoteStages(config.quoteNoStageNames).length,
+    reviewing: inQuoteStages(config.reviewingStageNames).length,
+    appointmentsBooked: inShowsStages(config.bookedStageNames).length,
+    appointmentsCancelled: inShowsStages(config.cancelledStageNames).length,
+    appointmentsLost: inShowsStages(config.lostStageNames).length,
   };
 }
 
 export interface WeeklyPipelineFunnelStats {
   weekIndex: number;
-  leads: number;
-  websiteLeads: number;
-  quoteFollowUp: number;
+  totalLeads: number;
+  leadsBySource: LeadSourceCount[];
   quotesSent: number;
-  quotesSentRevenue: number;
   quoteYes: number;
-  quoteYesRevenue: number;
   quoteNo: number;
   reviewing: number;
-  shows: number;
+  appointmentsBooked: number;
+  appointmentsCancelled: number;
+  appointmentsLost: number;
 }
 
 /**
- * Week-by-week version of getPipelineFunnelStats. "Quotes Sent" (and the
- * lead-source breakdown) is bucketed by when the opportunity was created —
- * that's when the quote pipeline started for it. Stage-based counts (Quote
- * Follow-up, Decisions, Reviewing) are bucketed by lastStageChangeAt, i.e.
- * the week it reached its current status. Both pipelines are still fetched
- * only once each for the whole range, not once per week.
+ * Week-by-week version of getPipelineFunnelStats. "Quotes Sent" and the lead
+ * source breakdown are bucketed by createdAt — when the opportunity (and,
+ * for leads, the funnel entry) started. Stage-based counts (Quote Yes/No,
+ * Reviewing, appointment stages) are bucketed by lastStageChangeAt, i.e. the
+ * week each opportunity reached its current status. Both pipelines are
+ * fetched only once each for the whole range, not once per week.
  */
 export async function getWeeklyPipelineFunnelStats(
   client: ClientConfig,
   config: CustomFunnelConfig,
   weeks: number
 ): Promise<WeeklyPipelineFunnelStats[]> {
-  const pipeline = await getPipelineByName(client, config.pipelineName);
+  const [pipeline, showsPipeline] = await Promise.all([
+    getPipelineByName(client, config.pipelineName),
+    getPipelineByName(client, config.showsPipelineName),
+  ]);
   const buckets = getWeekBuckets(weeks);
   const { startTime, endTime } = getRangeMillis(weeks);
 
-  const [opportunities, showsPipeline] = await Promise.all([
+  const [quoteOpportunities, leadOpportunities] = await Promise.all([
     fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
-    getPipelineByName(client, config.showsPipelineName),
+    fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime),
   ]);
 
-  const showsStageIds = new Set(
-    showsPipeline.stages.filter((s) => config.showsStageNames.includes(s.name)).map((s) => s.id)
-  );
-  const showsOpportunities = (
-    await fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime)
-  ).filter((o) => showsStageIds.has(o.pipelineStageId));
-
   const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
-  const quoteFollowUpSet = new Set(config.quoteFollowUpStageNames);
+  const showsStageNameById = new Map(showsPipeline.stages.map((s) => [s.id, s.name]));
   const quoteYesSet = new Set(config.quoteYesStageNames);
   const quoteNoSet = new Set(config.quoteNoStageNames);
   const reviewingSet = new Set(config.reviewingStageNames);
+  const bookedSet = new Set(config.bookedStageNames);
+  const cancelledSet = new Set(config.cancelledStageNames);
+  const lostSet = new Set(config.lostStageNames);
 
+  const allLeadOpportunities = [...leadOpportunities, ...quoteOpportunities];
   const uniqueContactIds = [
-    ...new Set(opportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
+    ...new Set(allLeadOpportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
   ];
   const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
   const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
 
   const result: WeeklyPipelineFunnelStats[] = buckets.map((b) => ({
     weekIndex: b.index,
-    leads: 0,
-    websiteLeads: 0,
-    quoteFollowUp: 0,
+    totalLeads: 0,
+    leadsBySource: [],
     quotesSent: 0,
-    quotesSentRevenue: 0,
     quoteYes: 0,
-    quoteYesRevenue: 0,
     quoteNo: 0,
     reviewing: 0,
-    shows: 0,
+    appointmentsBooked: 0,
+    appointmentsCancelled: 0,
+    appointmentsLost: 0,
   }));
+  const leadOppsByWeek: Opportunity[][] = buckets.map(() => []);
 
-  for (const opp of opportunities) {
+  for (const opp of allLeadOpportunities) {
+    const idx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
+    if (idx === null) continue;
+    result[idx].totalLeads += 1;
+    leadOppsByWeek[idx].push(opp);
+  }
+  result.forEach((r, i) => {
+    r.leadsBySource = countBySource(leadOppsByWeek[i], sourceByContactId, config);
+  });
+
+  for (const opp of quoteOpportunities) {
     const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
-    if (createdIdx !== null) {
-      result[createdIdx].quotesSent += 1;
-      result[createdIdx].quotesSentRevenue += opp.monetaryValue ?? 0;
-
-      const source = (sourceByContactId.get(opp.contactId ?? "") ?? "").toLowerCase();
-      if (source.includes(config.leadsSourceMatch.toLowerCase())) {
-        result[createdIdx].leads += 1;
-      }
-      if (source.includes(config.websiteLeadsSourceMatch.toLowerCase())) {
-        result[createdIdx].websiteLeads += 1;
-      }
-    }
+    if (createdIdx !== null) result[createdIdx].quotesSent += 1;
 
     const stageIdx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
     if (stageIdx === null) continue;
     const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
-    if (quoteFollowUpSet.has(stageName)) result[stageIdx].quoteFollowUp += 1;
-    if (quoteYesSet.has(stageName)) {
-      result[stageIdx].quoteYes += 1;
-      result[stageIdx].quoteYesRevenue += opp.monetaryValue ?? 0;
-    }
+    if (quoteYesSet.has(stageName)) result[stageIdx].quoteYes += 1;
     if (quoteNoSet.has(stageName)) result[stageIdx].quoteNo += 1;
     if (reviewingSet.has(stageName)) result[stageIdx].reviewing += 1;
   }
 
-  for (const opp of showsOpportunities) {
-    const idx = opp.lastStageChangeAt
+  for (const opp of leadOpportunities) {
+    const stageIdx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
-    if (idx === null) continue;
-    result[idx].shows += 1;
+    if (stageIdx === null) continue;
+    const stageName = showsStageNameById.get(opp.pipelineStageId) ?? "";
+    if (bookedSet.has(stageName)) result[stageIdx].appointmentsBooked += 1;
+    if (cancelledSet.has(stageName)) result[stageIdx].appointmentsCancelled += 1;
+    if (lostSet.has(stageName)) result[stageIdx].appointmentsLost += 1;
   }
 
   return result;

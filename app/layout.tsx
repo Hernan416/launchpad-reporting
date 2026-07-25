@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Launchpad AI Reporting",
+  title: {
+    default: "Launchpad AI Reporting",
+    template: "%s | Launchpad AI Reporting",
+  },
   description: "Meta Ads + GHL performance reporting for Launchpad AI clients",
 };
 

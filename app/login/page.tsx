@@ -33,7 +33,7 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f0f4f8] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f6fa] px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">
           Launchpad AI Reporting
@@ -61,7 +61,7 @@ export default async function LoginPage({
               name="email"
               type="email"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb]"
             />
           </div>
           <div>
@@ -76,12 +76,12 @@ export default async function LoginPage({
               name="password"
               type="password"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb]"
             />
           </div>
           <button
             type="submit"
-            className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="w-full rounded-md bg-[#0067eb] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0052ba]"
           >
             Sign in
           </button>

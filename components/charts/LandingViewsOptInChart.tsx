@@ -12,9 +12,9 @@ import {
   YAxis,
 } from "recharts";
 import type { WeeklyDataPoint } from "@/types";
-import { ACCENT_HEX } from "@/lib/accents";
+import { ACCENT_HEX, CHART_GRID_STROKE, CHART_TICK } from "@/lib/accents";
 
-const { strong, soft } = ACCENT_HEX.indigo;
+const { strong, soft } = ACCENT_HEX.gold;
 
 export function LandingViewsOptInChart({ data }: { data: WeeklyDataPoint[] }) {
   const chartData = data.map((d) => ({
@@ -26,13 +26,13 @@ export function LandingViewsOptInChart({ data }: { data: WeeklyDataPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis dataKey="weekLabel" tick={{ fontSize: 12, fill: "#64748b" }} />
-        <YAxis yAxisId="left" tick={{ fontSize: 12, fill: "#64748b" }} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+        <XAxis dataKey="weekLabel" tick={CHART_TICK} />
+        <YAxis yAxisId="left" tick={CHART_TICK} />
         <YAxis
           yAxisId="right"
           orientation="right"
-          tick={{ fontSize: 12, fill: "#64748b" }}
+          tick={CHART_TICK}
           tickFormatter={(v: number) => `${v}%`}
         />
         <Tooltip />

@@ -1,5 +1,6 @@
 import type {
   ClientReport,
+  LeadSourceCount,
   PipelineFunnelReport,
   Period,
   WeeklyDataPoint,
@@ -21,6 +22,16 @@ function safeDivide(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0;
 }
 
+const EMPTY_META: MetaInsights = {
+  spend: 0,
+  clicks: 0,
+  impressions: 0,
+  cpc: 0,
+  ctr: 0,
+  leads: 0,
+  landingPageViews: 0,
+};
+
 export async function getClientReport(
   slug: string,
   period: Period
@@ -32,34 +43,28 @@ export async function getClientReport(
 
   const warnings: string[] = [];
 
-  let meta: MetaInsights = {
-    spend: 0,
-    clicks: 0,
-    impressions: 0,
-    cpc: 0,
-    ctr: 0,
-    leads: 0,
-    landingPageViews: 0,
-  };
-  try {
-    meta = await getMetaInsights(
-      client.metaAdAccountId,
-      period,
-      client.metaLeadActionType
-    );
-  } catch (err) {
-    console.error(`[metrics] Meta Ads fetch failed for ${slug}:`, err);
+  // Independent sources — fetched concurrently, not one-after-another.
+  const [metaResult, apptResult, salesResult] = await Promise.allSettled([
+    getMetaInsights(client.metaAdAccountId, period, client.metaLeadActionType),
+    getAppointmentStats(client, period),
+    getSalesStats(client, period),
+  ]);
+
+  let meta = EMPTY_META;
+  if (metaResult.status === "fulfilled") {
+    meta = metaResult.value;
+  } else {
+    console.error(`[metrics] Meta Ads fetch failed for ${slug}:`, metaResult.reason);
     warnings.push("Couldn't load Meta Ads data.");
   }
 
   let appointments = 0;
   let shows = 0;
-  try {
-    const stats = await getAppointmentStats(client, period);
-    appointments = stats.appointments;
-    shows = stats.shows;
-  } catch (err) {
-    console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, err);
+  if (apptResult.status === "fulfilled") {
+    appointments = apptResult.value.appointments;
+    shows = apptResult.value.shows;
+  } else {
+    console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, apptResult.reason);
     warnings.push("Couldn't load appointments from GHL.");
   }
 
@@ -67,14 +72,13 @@ export async function getClientReport(
   let quotesSentRevenue = 0;
   let closed = 0;
   let closedRevenue = 0;
-  try {
-    const stats = await getSalesStats(client, period);
-    quotesSent = stats.quotesSent;
-    quotesSentRevenue = stats.quotesSentRevenue;
-    closed = stats.closed;
-    closedRevenue = stats.closedRevenue;
-  } catch (err) {
-    console.error(`[metrics] GHL sales fetch failed for ${slug}:`, err);
+  if (salesResult.status === "fulfilled") {
+    quotesSent = salesResult.value.quotesSent;
+    quotesSentRevenue = salesResult.value.quotesSentRevenue;
+    closed = salesResult.value.closed;
+    closedRevenue = salesResult.value.closedRevenue;
+  } else {
+    console.error(`[metrics] GHL sales fetch failed for ${slug}:`, salesResult.reason);
     warnings.push("Couldn't load sales opportunities from GHL.");
   }
 
@@ -124,7 +128,8 @@ export async function getClientReport(
  * recomputed live each time: Meta's own time_increment gives weekly rows in
  * one call, while GHL events/opportunities are fetched once for the whole
  * range and bucketed client-side by lib/weeks.ts (same anchor as Meta's
- * time_range, so rows line up across sources).
+ * time_range, so rows line up across sources). The three sources are
+ * independent, so they're fetched concurrently.
  */
 export async function getClientTrends(
   slug: string,
@@ -137,50 +142,39 @@ export async function getClientTrends(
 
   const buckets = getWeekBuckets(weeks);
 
-  const emptyMeta = {
-    spend: 0,
-    clicks: 0,
-    impressions: 0,
-    cpc: 0,
-    ctr: 0,
-    leads: 0,
-    landingPageViews: 0,
-  };
-  let weeklyMeta: Awaited<ReturnType<typeof getMetaWeeklyInsights>> = [];
-  try {
-    weeklyMeta = await getMetaWeeklyInsights(
-      client.metaAdAccountId,
-      weeks,
-      client.metaLeadActionType
-    );
-  } catch (err) {
-    console.error(`[metrics] Meta weekly fetch failed for ${slug}:`, err);
+  const [metaResult, apptResult, salesResult] = await Promise.allSettled([
+    getMetaWeeklyInsights(client.metaAdAccountId, weeks, client.metaLeadActionType),
+    getWeeklyAppointmentStats(client, weeks),
+    getWeeklySalesStats(client, weeks),
+  ]);
+
+  if (metaResult.status === "rejected") {
+    console.error(`[metrics] Meta weekly fetch failed for ${slug}:`, metaResult.reason);
   }
+  if (apptResult.status === "rejected") {
+    console.error(`[metrics] GHL weekly appointments fetch failed for ${slug}:`, apptResult.reason);
+  }
+  if (salesResult.status === "rejected") {
+    console.error(`[metrics] GHL weekly sales fetch failed for ${slug}:`, salesResult.reason);
+  }
+
   // Meta omits weeks with zero delivery entirely rather than returning a
   // zero row, so match by date instead of assuming index i === bucket i.
+  const weeklyMeta = metaResult.status === "fulfilled" ? metaResult.value : [];
   const metaByWeek = new Map(weeklyMeta.map((m) => [m.weekStart, m]));
 
-  const emptyAppt = { appointments: 0, shows: 0 };
-  let weeklyAppointments: Awaited<ReturnType<typeof getWeeklyAppointmentStats>> = [];
-  try {
-    weeklyAppointments = await getWeeklyAppointmentStats(client, weeks);
-  } catch (err) {
-    console.error(`[metrics] GHL weekly appointments fetch failed for ${slug}:`, err);
-  }
+  const weeklyAppointments = apptResult.status === "fulfilled" ? apptResult.value : [];
   const apptByWeek = new Map(weeklyAppointments.map((a) => [a.weekIndex, a]));
 
-  const emptySales = { quotesSent: 0, quotesSentRevenue: 0, closed: 0, closedRevenue: 0 };
-  let weeklySales: Awaited<ReturnType<typeof getWeeklySalesStats>> = [];
-  try {
-    weeklySales = await getWeeklySalesStats(client, weeks);
-  } catch (err) {
-    console.error(`[metrics] GHL weekly sales fetch failed for ${slug}:`, err);
-  }
+  const weeklySales = salesResult.status === "fulfilled" ? salesResult.value : [];
   const salesByWeek = new Map(weeklySales.map((s) => [s.weekIndex, s]));
+
+  const emptyAppt = { appointments: 0, shows: 0 };
+  const emptySales = { quotesSent: 0, quotesSentRevenue: 0, closed: 0, closedRevenue: 0 };
 
   return buckets.map((bucket) => {
     const bucketDateStr = bucket.start.toISOString().slice(0, 10);
-    const meta = metaByWeek.get(bucketDateStr) ?? emptyMeta;
+    const meta = metaByWeek.get(bucketDateStr) ?? EMPTY_META;
     const appt = apptByWeek.get(bucket.index) ?? emptyAppt;
     const sales = salesByWeek.get(bucket.index) ?? emptySales;
 
@@ -229,16 +223,15 @@ export async function getPipelineFunnelReport(
   const warnings: string[] = [];
 
   let funnel = {
-    leads: 0,
-    websiteLeads: 0,
-    quoteFollowUp: 0,
+    totalLeads: 0,
+    leadsBySource: [] as LeadSourceCount[],
     quotesSent: 0,
-    quotesSentRevenue: 0,
     quoteYes: 0,
-    quoteYesRevenue: 0,
     quoteNo: 0,
     reviewing: 0,
-    shows: 0,
+    appointmentsBooked: 0,
+    appointmentsCancelled: 0,
+    appointmentsLost: 0,
   };
   try {
     funnel = await getPipelineFunnelStats(client, client.customFunnel, period);
@@ -247,41 +240,25 @@ export async function getPipelineFunnelReport(
     warnings.push("Couldn't load the sales pipeline from GHL.");
   }
 
-  // "Appointments" (booked count) still comes from the GHL calendar — only
-  // "shows" is tracked via a pipeline stage instead of appointmentStatus.
-  let appointments = 0;
-  try {
-    const stats = await getAppointmentStats(client, period);
-    appointments = stats.appointments;
-  } catch (err) {
-    console.error(`[metrics] GHL appointments fetch failed for ${slug}:`, err);
-    warnings.push("Couldn't load appointments from GHL.");
-  }
-
-  const shows = funnel.shows;
   const decisions = funnel.quoteYes + funnel.quoteNo;
 
   return {
     period,
     updatedAt: new Date().toISOString(),
     warnings,
-    leads: funnel.leads,
-    websiteLeads: funnel.websiteLeads,
-    quoteFollowUp: funnel.quoteFollowUp,
+    totalLeads: funnel.totalLeads,
+    leadsBySource: funnel.leadsBySource,
     quotesSent: funnel.quotesSent,
-    revenueOpportunity: funnel.quotesSentRevenue,
-    reviewing: funnel.reviewing,
-    decisions,
     quoteYes: funnel.quoteYes,
     quoteNo: funnel.quoteNo,
-    revenueClosed: funnel.quoteYesRevenue,
+    reviewing: funnel.reviewing,
+    decisions,
     decisionRate: safeDivide(decisions, funnel.quotesSent),
     yesRate: safeDivide(funnel.quoteYes, decisions),
     noRate: safeDivide(funnel.quoteNo, decisions),
-    appointments,
-    shows,
-    showRate: safeDivide(shows, appointments),
-    closeRate: safeDivide(funnel.quoteYes, shows),
+    appointmentsBooked: funnel.appointmentsBooked,
+    appointmentsCancelled: funnel.appointmentsCancelled,
+    appointmentsLost: funnel.appointmentsLost,
   };
 }
 
@@ -300,16 +277,15 @@ export async function getPipelineFunnelTrends(
 
   const buckets = getWeekBuckets(weeks);
   const empty = {
-    leads: 0,
-    websiteLeads: 0,
-    quoteFollowUp: 0,
+    totalLeads: 0,
+    leadsBySource: [] as LeadSourceCount[],
     quotesSent: 0,
-    quotesSentRevenue: 0,
     quoteYes: 0,
-    quoteYesRevenue: 0,
     quoteNo: 0,
     reviewing: 0,
-    shows: 0,
+    appointmentsBooked: 0,
+    appointmentsCancelled: 0,
+    appointmentsLost: 0,
   };
 
   let weekly: Awaited<ReturnType<typeof getWeeklyPipelineFunnelStats>> = [];
@@ -327,20 +303,19 @@ export async function getPipelineFunnelTrends(
     return {
       weekLabel: bucket.label,
       weekStart: bucket.start.toISOString(),
-      leads: w.leads,
-      websiteLeads: w.websiteLeads,
-      quoteFollowUp: w.quoteFollowUp,
+      totalLeads: w.totalLeads,
+      leadsBySource: w.leadsBySource,
       quotesSent: w.quotesSent,
-      revenueOpportunity: w.quotesSentRevenue,
-      reviewing: w.reviewing,
-      decisions,
       quoteYes: w.quoteYes,
       quoteNo: w.quoteNo,
-      revenueClosed: w.quoteYesRevenue,
+      reviewing: w.reviewing,
+      decisions,
       decisionRate: safeDivide(decisions, w.quotesSent),
       yesRate: safeDivide(w.quoteYes, decisions),
       noRate: safeDivide(w.quoteNo, decisions),
-      shows: w.shows,
+      appointmentsBooked: w.appointmentsBooked,
+      appointmentsCancelled: w.appointmentsCancelled,
+      appointmentsLost: w.appointmentsLost,
     };
   });
 }

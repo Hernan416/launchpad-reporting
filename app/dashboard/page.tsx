@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { clients } from "@/config/clients";
 import { DashboardShell } from "@/components/DashboardShell";
 
+export const metadata = { title: "All Clients" };
+
 export default async function MasterDashboardPage() {
   const session = await auth();
 
@@ -24,12 +26,12 @@ export default async function MasterDashboardPage() {
           <Link
             key={client.slug}
             href={`/dashboard/${client.slug}`}
-            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-blue-300 hover:shadow-md"
+            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-[#0067eb]/40 hover:shadow-md"
           >
             <p className="text-lg font-semibold text-slate-900">
               {client.name}
             </p>
-            <p className="mt-1 text-sm font-medium text-blue-600">
+            <p className="mt-1 text-sm font-medium text-[#0067eb]">
               View report →
             </p>
           </Link>

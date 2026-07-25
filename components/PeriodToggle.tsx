@@ -23,8 +23,8 @@ export function PeriodToggle({
             href={`/dashboard/${slug}?period=${option.value}`}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
-                ? "bg-blue-600 text-white"
-                : "text-slate-600 hover:text-blue-700"
+                ? "bg-[#0067eb] text-white"
+                : "text-slate-600 hover:text-[#0067eb]"
             }`}
           >
             {option.label}
