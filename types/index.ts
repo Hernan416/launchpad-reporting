@@ -46,6 +46,8 @@ export interface ClientConfig {
   metaAdAccountId: string;
   /** Meta action_type used as "lead" — varies per client's pixel/Lead Ads setup. */
   metaLeadActionType?: string;
+  /** Meta action_type used as "landing page views" for Funnel/Opt-in Rate — defaults to "landing_page_view". Override when a client's leads mostly come from Facebook Instant Forms (no landing page in the funnel), which makes leads exceed landing_page_view and Opt-in Rate go over 100%. */
+  metaLandingPageViewActionType?: string;
   /** false for clients with no Meta Ads involvement — renders the GHL-only custom funnel dashboard instead of the standard report. Defaults to true. */
   showMetaAds?: boolean;
   ghlLocationId: string;

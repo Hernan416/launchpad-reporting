@@ -5,10 +5,10 @@ import type { ClientConfig } from "@/types";
  * Each client also needs a GHL Private Integration Token in env var
  * GHL_TOKEN_<SLUG_UPPER_SNAKE> (e.g. GHL_TOKEN_EXCEL_ROOFING) — see lib/ghl.ts.
  *
- * One Day Roofing still uses lib/ghl.ts's placeholder defaults for
- * ghlPipelineName/ghlQuoteSentStageNames/ghlClosedStageNames ("Sales
- * Pipeline" / "Quote Sent" / "Closed Won") — real pipeline/stage names not
- * yet confirmed for that client.
+ * Every client below now has real pipeline/stage names mapped from its own
+ * GHL account — lib/ghl.ts's "Sales Pipeline"/"Quote Sent"/"Closed Won"
+ * defaults are unused placeholders at this point, kept only as a fallback
+ * for a future client that hasn't been mapped yet.
  */
 export const clients: ClientConfig[] = [
   {
@@ -75,9 +75,46 @@ export const clients: ClientConfig[] = [
     slug: "one-day-roofing",
     name: "One Day Roofing",
     metaAdAccountId: "act_1611642193294442",
+    // Verified against real ad data 2026-07-28: most leads here come from
+    // Facebook Instant Forms with no landing page in the funnel at all (30d:
+    // 34 leads vs. only 10 landing_page_view), which pushed Opt-in Rate over
+    // 100%. "link_click" (187 in the same window) is the best available
+    // proxy for "reached the conversion surface" for this client.
+    metaLandingPageViewActionType: "link_click",
     ghlLocationId: "6DiccF7Ccfm34ctwznt3",
-    // In-Home Roof Estimate
+    // In-Home Roof Estimate ("Testing" calendar excluded — 0 events, confirmed dummy)
     ghlCalendarIds: ["RyVQrAhULnwIxgCXH0uX"],
+    // Mapped via direct GHL API calls 2026-07-28. This location has 7
+    // pipelines, but only "Meta Ads" carries real sales data (58 opportunities
+    // in 60d) — "AI Quote Follow Up" and "Website Leads" exist but are
+    // completely unused (0 opportunities each, same dormant-legacy pattern as
+    // Excel Roofing/US Home Pro's unused second pipeline), and the other four
+    // "AI ... Tracking" pipelines are internal bot-orchestration plumbing (one
+    // of them, "AI Setting Tracking", has 39 opportunities but mirrors the
+    // same contacts already in "Meta Ads" — not a separate lead source).
+    //
+    // Same structure as US Home Pro's "Meta Ads" pipeline: showing up and
+    // getting quoted are the same stage ("Showed and Quoted"), so quotesSent
+    // and shows share one stage set. Verified the calendar's own
+    // appointmentStatus is unreliable here too — cross-checked all 13
+    // opportunities at or past "Showed and Quoted" against their calendar
+    // event: only 6/13 actually said "showed" (rest were stale
+    // confirmed/cancelled/invalid, one had no calendar event at all) — so
+    // ghlShowStatus is deliberately left unset in favor of ghlShowStageNames.
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Showed and Quoted",
+      "In AI Quote Followup Sequence",
+      "Closed",
+      "Quote Rejected - Job Lost",
+    ],
+    ghlClosedStageNames: ["Closed"],
+    ghlShowStageNames: [
+      "Showed and Quoted",
+      "In AI Quote Followup Sequence",
+      "Closed",
+      "Quote Rejected - Job Lost",
+    ],
   },
   {
     slug: "us-home-pro",

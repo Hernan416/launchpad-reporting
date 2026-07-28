@@ -56,7 +56,11 @@ function findAction(actions: MetaAction[] | undefined, type: string): number {
   return match ? Number(match.value) : 0;
 }
 
-function parseRow(row: MetaInsightsRow | undefined, leadActionType: string): MetaInsights {
+function parseRow(
+  row: MetaInsightsRow | undefined,
+  leadActionType: string,
+  landingPageViewActionType: string
+): MetaInsights {
   const spend = Number(row?.spend ?? 0);
   const clicks = Number(row?.clicks ?? 0);
   const impressions = Number(row?.impressions ?? 0);
@@ -75,7 +79,7 @@ function parseRow(row: MetaInsightsRow | undefined, leadActionType: string): Met
     cpc,
     ctr,
     leads: findAction(row?.actions, leadActionType),
-    landingPageViews: findAction(row?.actions, "landing_page_view"),
+    landingPageViews: findAction(row?.actions, landingPageViewActionType),
   };
 }
 
@@ -103,11 +107,20 @@ async function fetchInsights(
  * up — "lead" (on-platform Lead Ads) and "offsite_conversion.fb_pixel_lead"
  * (website pixel) are both common. Defaults to "lead"; override per client
  * once verified against real ad account data.
+ *
+ * landingPageViewActionType defaults to "landing_page_view", but that action
+ * only fires for traffic that actually lands on an external page — a client
+ * running mostly Facebook Instant Forms (no landing page in the funnel at
+ * all) will show far more leads than landing_page_view, making Opt-in Rate
+ * exceed 100%. Override to "link_click" (or whatever's the best proxy for
+ * "reached the conversion surface") once verified against real ad data —
+ * confirmed necessary for One Day Roofing 2026-07-28.
  */
 export async function getMetaInsights(
   adAccountId: string,
   period: Period,
-  leadActionType: string = "lead"
+  leadActionType: string = "lead",
+  landingPageViewActionType: string = "landing_page_view"
 ): Promise<MetaInsights> {
   const params = new URLSearchParams({
     fields: "spend,clicks,impressions,ctr,cpc,actions",
@@ -115,7 +128,7 @@ export async function getMetaInsights(
   });
 
   const data = await fetchInsights(adAccountId, params);
-  return parseRow(data[0], leadActionType);
+  return parseRow(data[0], leadActionType, landingPageViewActionType);
 }
 
 /**
@@ -125,7 +138,8 @@ export async function getMetaInsights(
 export async function getMetaWeeklyInsights(
   adAccountId: string,
   weeks: number,
-  leadActionType: string = "lead"
+  leadActionType: string = "lead",
+  landingPageViewActionType: string = "landing_page_view"
 ): Promise<WeeklyMetaInsights[]> {
   const buckets = getWeekBuckets(weeks);
   const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
@@ -146,6 +160,6 @@ export async function getMetaWeeklyInsights(
 
   return data.map((row) => ({
     weekStart: row.date_start ?? "",
-    ...parseRow(row, leadActionType),
+    ...parseRow(row, leadActionType, landingPageViewActionType),
   }));
 }

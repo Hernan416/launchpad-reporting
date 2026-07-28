@@ -45,7 +45,12 @@ export async function getClientReport(
 
   // Independent sources — fetched concurrently, not one-after-another.
   const [metaResult, apptResult, salesResult] = await Promise.allSettled([
-    getMetaInsights(client.metaAdAccountId, period, client.metaLeadActionType),
+    getMetaInsights(
+      client.metaAdAccountId,
+      period,
+      client.metaLeadActionType,
+      client.metaLandingPageViewActionType
+    ),
     getAppointmentStats(client, period),
     getSalesStats(client, period),
   ]);
@@ -68,11 +73,19 @@ export async function getClientReport(
     warnings.push("Couldn't load appointments from GHL.");
   }
 
+  // GHL's deduplicated opportunity count, not Meta's raw "lead" action —
+  // Meta counts every form submission (duplicates included, e.g. the same
+  // person re-submitting after seeing a retargeting ad), while GHL won't
+  // create a second contact/opportunity for a repeat submission (confirmed
+  // against real data 2026-07-28: Meta reported 34 "lead" actions in a 30-day
+  // window where GHL only ever created 24 opportunities for that pipeline).
+  let leads = 0;
   let quotesSent = 0;
   let quotesSentRevenue = 0;
   let closed = 0;
   let closedRevenue = 0;
   if (salesResult.status === "fulfilled") {
+    leads = salesResult.value.leads;
     quotesSent = salesResult.value.quotesSent;
     quotesSentRevenue = salesResult.value.quotesSentRevenue;
     closed = salesResult.value.closed;
@@ -104,12 +117,12 @@ export async function getClientReport(
       impressions: meta.impressions,
       cpc: meta.cpc,
       ctr: meta.ctr,
-      leads: meta.leads,
-      costPerLead: safeDivide(meta.spend, meta.leads),
+      leads,
+      costPerLead: safeDivide(meta.spend, leads),
     },
     funnel: {
       landingPageViews: meta.landingPageViews,
-      optInRate: safeDivide(meta.leads, meta.landingPageViews),
+      optInRate: safeDivide(leads, meta.landingPageViews),
       appointments,
       costPerAppointment: safeDivide(meta.spend, appointments),
     },
@@ -143,7 +156,12 @@ export async function getClientTrends(
   const buckets = getWeekBuckets(weeks);
 
   const [metaResult, apptResult, salesResult] = await Promise.allSettled([
-    getMetaWeeklyInsights(client.metaAdAccountId, weeks, client.metaLeadActionType),
+    getMetaWeeklyInsights(
+      client.metaAdAccountId,
+      weeks,
+      client.metaLeadActionType,
+      client.metaLandingPageViewActionType
+    ),
     getWeeklyAppointmentStats(client, weeks),
     getWeeklySalesStats(client, weeks),
   ]);
@@ -170,7 +188,7 @@ export async function getClientTrends(
   const salesByWeek = new Map(weeklySales.map((s) => [s.weekIndex, s]));
 
   const emptyAppt = { appointments: 0, shows: 0 };
-  const emptySales = { quotesSent: 0, quotesSentRevenue: 0, closed: 0, closedRevenue: 0 };
+  const emptySales = { leads: 0, quotesSent: 0, quotesSentRevenue: 0, closed: 0, closedRevenue: 0 };
 
   return buckets.map((bucket) => {
     const bucketDateStr = bucket.start.toISOString().slice(0, 10);
@@ -182,12 +200,13 @@ export async function getClientTrends(
       weekLabel: bucket.label,
       weekStart: bucket.start.toISOString(),
       adSpend: meta.spend,
-      leads: meta.leads,
+      // GHL's deduplicated opportunity count, not Meta's raw "lead" action — see getClientReport.
+      leads: sales.leads,
       cpc: meta.cpc,
       ctr: meta.ctr,
-      costPerLead: safeDivide(meta.spend, meta.leads),
+      costPerLead: safeDivide(meta.spend, sales.leads),
       landingPageViews: meta.landingPageViews,
-      optInRate: safeDivide(meta.leads, meta.landingPageViews),
+      optInRate: safeDivide(sales.leads, meta.landingPageViews),
       appointments: appt.appointments,
       shows: appt.shows,
       showRate: safeDivide(appt.shows, appt.appointments),

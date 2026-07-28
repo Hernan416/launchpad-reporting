@@ -53,6 +53,8 @@ export interface GhlAppointmentStats {
 }
 
 export interface GhlSalesStats {
+  /** Every opportunity created in ghlPipelineName during the period — the deduplicated lead count (GHL won't create a second contact/opportunity for a repeat form submission), used instead of Meta's own raw "lead" action count which counts every submission, duplicates included. */
+  leads: number;
   quotesSent: number;
   quotesSentRevenue: number;
   closed: number;
@@ -67,6 +69,7 @@ export interface WeeklyAppointmentStats {
 
 export interface WeeklySalesStats {
   weekIndex: number;
+  leads: number;
   quotesSent: number;
   quotesSentRevenue: number;
   closed: number;
@@ -296,6 +299,7 @@ export async function getSalesStats(
   const closedAgg = aggregateOpportunities(filterByStageNames(opportunities, stageNameById, closedNames));
 
   return {
+    leads: opportunities.length,
     quotesSent: quoteAgg.count,
     quotesSentRevenue: quoteAgg.revenue,
     closed: closedAgg.count,
@@ -320,6 +324,7 @@ export async function getWeeklySalesStats(
 
   const result: WeeklySalesStats[] = buckets.map((b) => ({
     weekIndex: b.index,
+    leads: 0,
     quotesSent: 0,
     quotesSentRevenue: 0,
     closed: 0,
@@ -327,6 +332,9 @@ export async function getWeeklySalesStats(
   }));
 
   for (const opp of opportunities) {
+    const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
+    if (createdIdx !== null) result[createdIdx].leads += 1;
+
     const idx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
