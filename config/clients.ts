@@ -120,6 +120,51 @@ export const clients: ClientConfig[] = [
       "Quote Rejected - Job Lost",
     ],
   },
+  {
+    slug: "jj-roofing",
+    name: "JJ Roofing",
+    metaAdAccountId: "act_1757690398122189",
+    ghlLocationId: "8ZAnZs0waICI9kZ8hE23",
+    // Roof Estimates (in-person), MANUAL BOOKING - Roof Estimates (in-person)
+    ghlCalendarIds: ["6DDI0zvqHt7fsZny08vB", "yh0U7Sv8J2J6dGfvRiqE"],
+    // Real "Home Services Pipeline" mapped via direct GHL API calls 2026-07-28
+    // (single pipeline, single service line — roof replacement/estimates).
+    //
+    // Confirmed with the user, same finding as Excel Roofing/US Home Pro: the
+    // calendar's own appointmentStatus isn't kept in sync with reality (e.g. a
+    // contact already at "Quote Closed" still had a "confirmed" calendar
+    // event, never updated to "showed") — ghlShowStatus is deliberately left
+    // unset so getAppointmentStats uses ghlShowStageNames (pipeline-based)
+    // instead.
+    //
+    // Unlike US Home Pro, showing up and getting a quote are two separate,
+    // sequential stages here ("Appt Showed - Quote Requested" then later
+    // "Quote Delivered"), so quotesSent and shows are different stage sets.
+    // "Long Term Nurture" and "Dead Lead" both happen after the appointment
+    // stage chronologically, but only Long Term Nurture implies they actually
+    // showed up (confirmed with the user) — Dead Lead does not count as shown.
+    // "Deposit Collected"/"Job Completed" are post-sale fulfillment stages of
+    // an already-won deal, so they count as Closed same as "Quote Closed".
+    ghlPipelineName: "Home Services Pipeline",
+    ghlQuoteSentStageNames: [
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+    ghlShowStageNames: [
+      "Appt Showed - Quote Requested",
+      "Appt Showed - not moving forward",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+      "Long Term Nurture",
+    ],
+  },
 ];
 
 export function getClientBySlug(slug: string): ClientConfig | undefined {
