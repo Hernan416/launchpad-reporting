@@ -2,11 +2,16 @@ import type { WeeklyDataPoint } from "@/types";
 import { ChartCard } from "@/components/ChartCard";
 import { WeeklyTable } from "@/components/WeeklyTable";
 import { AdSpendRevenueChart } from "@/components/charts/AdSpendRevenueChart";
-import { CacRoasChart } from "@/components/charts/CacRoasChart";
-import { CpcCtrChart } from "@/components/charts/CpcCtrChart";
-import { LeadsCostChart } from "@/components/charts/LeadsCostChart";
-import { LandingViewsOptInChart } from "@/components/charts/LandingViewsOptInChart";
-import { AppointmentsCostChart } from "@/components/charts/AppointmentsCostChart";
+import { CacChart } from "@/components/charts/CacChart";
+import { RoasChart } from "@/components/charts/RoasChart";
+import { CpcChart } from "@/components/charts/CpcChart";
+import { CtrChart } from "@/components/charts/CtrChart";
+import { LeadsChart } from "@/components/charts/LeadsChart";
+import { CostPerLeadChart } from "@/components/charts/CostPerLeadChart";
+import { LandingViewsChart } from "@/components/charts/LandingViewsChart";
+import { OptInRateChart } from "@/components/charts/OptInRateChart";
+import { AppointmentsChart } from "@/components/charts/AppointmentsChart";
+import { CostPerAppointmentChart } from "@/components/charts/CostPerAppointmentChart";
 import { CloseRateChart } from "@/components/charts/CloseRateChart";
 import { QuotesClosedChart } from "@/components/charts/QuotesClosedChart";
 import { ShowRateDonut } from "@/components/charts/ShowRateDonut";
@@ -14,7 +19,9 @@ import { ShowRateDonut } from "@/components/charts/ShowRateDonut";
 /**
  * Chart-and-table slice of the standard dashboard — the slower, weekly-
  * history half of the report. Streams in independently of SnapshotSections
- * via its own Suspense boundary and promise.
+ * via its own Suspense boundary and promise. The table comes first (it's
+ * the fastest thing to scan), then one simple single-metric chart per row
+ * instead of dual-axis/mixed-unit combos — easier to read at a glance.
  */
 export async function TrendsSections({
   trendsPromise,
@@ -27,54 +34,52 @@ export async function TrendsSections({
 
   return (
     <div className="space-y-8">
+      <div>
+        <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
+          Weekly Detail — Last {weeks} Weeks
+        </h2>
+        <WeeklyTable data={trends} />
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard
-          title="Ad Spend vs Revenue Closed"
-          subtitle="Weekly ad spend (bars) against revenue from closed deals (line)"
-          accent="blue"
-        >
+        <ChartCard title="Ad Spend vs Revenue Closed" subtitle="Weekly, per week" accent="blue">
           <AdSpendRevenueChart data={trends} />
         </ChartCard>
-        <ChartCard
-          title="CAC & ROAS"
-          subtitle="CAC = Ad Spend ÷ Closed · ROAS = Revenue Closed ÷ Ad Spend"
-          accent="blue"
-        >
-          <CacRoasChart data={trends} />
+        <ChartCard title="CAC" subtitle="Ad Spend ÷ Closed, per week" accent="blue">
+          <CacChart data={trends} />
+        </ChartCard>
+        <ChartCard title="ROAS" subtitle="Revenue Closed ÷ Ad Spend, per week" accent="blue">
+          <RoasChart data={trends} />
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard
-          title="CPC & CTR"
-          subtitle="Weekly cost per click vs click-through rate"
-          accent="blue"
-        >
-          <CpcCtrChart data={trends} />
+        <ChartCard title="CPC" subtitle="Cost per click, per week" accent="blue">
+          <CpcChart data={trends} />
         </ChartCard>
-        <ChartCard
-          title="Leads & Cost per Lead"
-          subtitle="Weekly lead volume (bars) vs cost per lead (line)"
-          accent="blue"
-        >
-          <LeadsCostChart data={trends} />
+        <ChartCard title="CTR" subtitle="Click-through rate, per week" accent="blue">
+          <CtrChart data={trends} />
+        </ChartCard>
+        <ChartCard title="Leads" subtitle="Weekly lead volume" accent="blue">
+          <LeadsChart data={trends} />
+        </ChartCard>
+        <ChartCard title="Cost per Lead" subtitle="Weekly, per week" accent="blue">
+          <CostPerLeadChart data={trends} />
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard
-          title="Landing Page Views & Opt-in Rate"
-          subtitle="Weekly landing page views (bars) vs opt-in rate (line)"
-          accent="gold"
-        >
-          <LandingViewsOptInChart data={trends} />
+        <ChartCard title="Landing Page Views" subtitle="Weekly volume" accent="gold">
+          <LandingViewsChart data={trends} />
         </ChartCard>
-        <ChartCard
-          title="Appointments & Cost per Appointment"
-          subtitle="Weekly appointments booked (bars) vs cost per appointment (line)"
-          accent="gold"
-        >
-          <AppointmentsCostChart data={trends} />
+        <ChartCard title="Opt-in Rate" subtitle="Leads ÷ Landing Page Views, per week" accent="gold">
+          <OptInRateChart data={trends} />
+        </ChartCard>
+        <ChartCard title="Appointments" subtitle="Weekly appointments booked" accent="gold">
+          <AppointmentsChart data={trends} />
+        </ChartCard>
+        <ChartCard title="Cost per Appointment" subtitle="Weekly, per week" accent="gold">
+          <CostPerAppointmentChart data={trends} />
         </ChartCard>
       </div>
 
@@ -100,13 +105,6 @@ export async function TrendsSections({
         >
           <ShowRateDonut data={trends} />
         </ChartCard>
-      </div>
-
-      <div>
-        <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
-          Weekly Detail — Last {weeks} Weeks
-        </h2>
-        <WeeklyTable data={trends} />
       </div>
     </div>
   );

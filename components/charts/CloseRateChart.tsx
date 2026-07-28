@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
   ResponsiveContainer,
@@ -24,7 +24,7 @@ export function CloseRateChart({ data }: { data: WeeklyDataPoint[] }) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={chartData}>
+      <BarChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
         <XAxis dataKey="weekLabel" tick={CHART_TICK} />
         <YAxis
@@ -34,23 +34,9 @@ export function CloseRateChart({ data }: { data: WeeklyDataPoint[] }) {
         />
         <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
         <Legend />
-        <Area
-          type="monotone"
-          dataKey="showRatePct"
-          name="Show Rate %"
-          stroke={soft}
-          fill={soft}
-          fillOpacity={0.3}
-        />
-        <Area
-          type="monotone"
-          dataKey="closeRatePct"
-          name="Close Rate %"
-          stroke={strong}
-          fill={strong}
-          fillOpacity={0.3}
-        />
-      </AreaChart>
+        <Bar dataKey="showRatePct" name="Show Rate %" fill={soft} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="closeRatePct" name="Close Rate %" fill={strong} radius={[4, 4, 0, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }

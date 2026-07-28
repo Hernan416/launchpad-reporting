@@ -6,8 +6,8 @@ const API_VERSION = "2021-07-28";
 
 const DEFAULT_SHOW_STATUS = "showed";
 const DEFAULT_PIPELINE_NAME = "Sales Pipeline";
-const DEFAULT_QUOTE_SENT_STAGE = "Quote Sent";
-const DEFAULT_CLOSED_STAGE = "Closed Won";
+const DEFAULT_QUOTE_SENT_STAGES = ["Quote Sent"];
+const DEFAULT_CLOSED_STAGES = ["Closed Won"];
 
 interface CalendarEvent {
   appointmentStatus?: string;
@@ -77,8 +77,6 @@ interface StageAggregate {
   count: number;
   revenue: number;
 }
-
-const EMPTY_STAGE_AGGREGATE: StageAggregate = { count: 0, revenue: 0 };
 
 /** Hard cap on pages fetched per stage (100/page) — a safety net against runaway pagination, not an expected real-world ceiling. */
 const MAX_OPPORTUNITY_PAGES = 20;
@@ -157,18 +155,68 @@ async function fetchCalendarEvents(
   return perCalendar.flatMap((data) => data.events ?? []);
 }
 
+/**
+ * Fetches the client's sales pipeline (ghlPipelineName, defaulting to the
+ * first pipeline if unset/not found) and every opportunity created in it
+ * within the given range, alongside a stageId -> stageName map. Shared by
+ * getAppointmentStats (pipeline-sourced shows), getSalesStats, and their
+ * weekly counterparts, so callers filter this same fetch by stage-name set
+ * instead of each issuing their own per-stage request.
+ */
+async function getSalesPipelineOpportunities(
+  client: ClientConfig,
+  startTime: number,
+  endTime: number
+): Promise<{ opportunities: Opportunity[]; stageNameById: Map<string, string> }> {
+  const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
+    locationId: client.ghlLocationId,
+  });
+
+  const pipelineName = client.ghlPipelineName ?? DEFAULT_PIPELINE_NAME;
+  const pipeline = data.pipelines.find((p) => p.name === pipelineName) ?? data.pipelines[0];
+  if (!pipeline) {
+    throw new Error(`${client.slug} has no GHL pipelines configured.`);
+  }
+
+  const opportunities = await fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime);
+  const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
+  return { opportunities, stageNameById };
+}
+
+function filterByStageNames(
+  opportunities: Opportunity[],
+  stageNameById: Map<string, string>,
+  names: string[]
+): Opportunity[] {
+  const nameSet = new Set(names);
+  return opportunities.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
+}
+
 export async function getAppointmentStats(
   client: ClientConfig,
   period: Period
 ): Promise<GhlAppointmentStats> {
   const calendarIds = requireCalendarIds(client);
   const { startTime, endTime } = periodToRange(period);
-  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
-
   const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
+  const appointments = events.length;
 
+  // Some clients' automation doesn't reliably keep the calendar event's own
+  // appointmentStatus in sync with reality — their "Pipeline Movements"
+  // workflows are the one thing that does, so shows come from there instead.
+  if (client.ghlShowStageNames && client.ghlShowStageNames.length > 0) {
+    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
+      client,
+      startTime,
+      endTime
+    );
+    const shows = filterByStageNames(opportunities, stageNameById, client.ghlShowStageNames).length;
+    return { appointments, shows };
+  }
+
+  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
   return {
-    appointments: events.length,
+    appointments,
     shows: events.filter((e) => e.appointmentStatus === showStatus).length,
   };
 }
@@ -180,8 +228,6 @@ export async function getWeeklyAppointmentStats(
   const calendarIds = requireCalendarIds(client);
   const buckets = getWeekBuckets(weeks);
   const { startTime, endTime } = getRangeMillis(weeks);
-  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
-
   const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
 
   const result: WeeklyAppointmentStats[] = buckets.map((b) => ({
@@ -195,69 +241,34 @@ export async function getWeeklyAppointmentStats(
     const idx = bucketIndexForDate(new Date(event.startTime), buckets);
     if (idx === null) continue;
     result[idx].appointments += 1;
-    if (event.appointmentStatus === showStatus) result[idx].shows += 1;
+  }
+
+  if (client.ghlShowStageNames && client.ghlShowStageNames.length > 0) {
+    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
+      client,
+      startTime,
+      endTime
+    );
+    const showOpps = filterByStageNames(opportunities, stageNameById, client.ghlShowStageNames);
+    for (const opp of showOpps) {
+      const idx = opp.lastStageChangeAt
+        ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+        : null;
+      if (idx === null) continue;
+      result[idx].shows += 1;
+    }
+    return result;
+  }
+
+  const showStatus = client.ghlShowStatus ?? DEFAULT_SHOW_STATUS;
+  for (const event of events) {
+    if (!event.startTime || event.appointmentStatus !== showStatus) continue;
+    const idx = bucketIndexForDate(new Date(event.startTime), buckets);
+    if (idx === null) continue;
+    result[idx].shows += 1;
   }
 
   return result;
-}
-
-async function findStageIds(
-  client: ClientConfig
-): Promise<{ pipelineId: string; quoteSentStageId?: string; closedStageId?: string }> {
-  const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
-    locationId: client.ghlLocationId,
-  });
-
-  const pipelineName = client.ghlPipelineName ?? DEFAULT_PIPELINE_NAME;
-  const pipeline =
-    data.pipelines.find((p) => p.name === pipelineName) ?? data.pipelines[0];
-
-  if (!pipeline) {
-    throw new Error(`${client.slug} has no GHL pipelines configured.`);
-  }
-
-  const quoteSentName = client.ghlQuoteSentStageName ?? DEFAULT_QUOTE_SENT_STAGE;
-  const closedName = client.ghlClosedStageName ?? DEFAULT_CLOSED_STAGE;
-
-  return {
-    pipelineId: pipeline.id,
-    quoteSentStageId: pipeline.stages.find((s) => s.name === quoteSentName)?.id,
-    closedStageId: pipeline.stages.find((s) => s.name === closedName)?.id,
-  };
-}
-
-async function fetchStageOpportunities(
-  client: ClientConfig,
-  pipelineId: string,
-  pipelineStageId: string,
-  startTime: number,
-  endTime: number
-): Promise<Opportunity[]> {
-  const limit = 100;
-  let page = 1;
-  const all: Opportunity[] = [];
-
-  for (;;) {
-    // /opportunities/search wants snake_case for these three params,
-    // unlike every other GHL endpoint here — confirmed against the live API.
-    const data = await ghlFetch<OpportunitiesSearchResponse>(client, "/opportunities/search", {
-      location_id: client.ghlLocationId,
-      pipeline_id: pipelineId,
-      pipeline_stage_id: pipelineStageId,
-      date: String(startTime),
-      endDate: String(endTime),
-      page: String(page),
-      limit: String(limit),
-    });
-
-    const opportunities = data.opportunities ?? [];
-    all.push(...opportunities);
-
-    if (opportunities.length < limit || page >= MAX_OPPORTUNITY_PAGES) break;
-    page += 1;
-  }
-
-  return all;
 }
 
 function aggregateOpportunities(opportunities: Opportunity[]): StageAggregate {
@@ -267,37 +278,22 @@ function aggregateOpportunities(opportunities: Opportunity[]): StageAggregate {
   };
 }
 
-async function getStageAggregate(
-  client: ClientConfig,
-  pipelineId: string,
-  pipelineStageId: string,
-  period: Period
-): Promise<StageAggregate> {
-  const { startTime, endTime } = periodToRange(period);
-  const opportunities = await fetchStageOpportunities(
-    client,
-    pipelineId,
-    pipelineStageId,
-    startTime,
-    endTime
-  );
-  return aggregateOpportunities(opportunities);
-}
-
 export async function getSalesStats(
   client: ClientConfig,
   period: Period
 ): Promise<GhlSalesStats> {
-  const { pipelineId, quoteSentStageId, closedStageId } = await findStageIds(client);
+  const { startTime, endTime } = periodToRange(period);
+  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
+    client,
+    startTime,
+    endTime
+  );
 
-  const [quoteAgg, closedAgg] = await Promise.all([
-    quoteSentStageId
-      ? getStageAggregate(client, pipelineId, quoteSentStageId, period)
-      : Promise.resolve(EMPTY_STAGE_AGGREGATE),
-    closedStageId
-      ? getStageAggregate(client, pipelineId, closedStageId, period)
-      : Promise.resolve(EMPTY_STAGE_AGGREGATE),
-  ]);
+  const quoteSentNames = client.ghlQuoteSentStageNames ?? DEFAULT_QUOTE_SENT_STAGES;
+  const closedNames = client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES;
+
+  const quoteAgg = aggregateOpportunities(filterByStageNames(opportunities, stageNameById, quoteSentNames));
+  const closedAgg = aggregateOpportunities(filterByStageNames(opportunities, stageNameById, closedNames));
 
   return {
     quotesSent: quoteAgg.count,
@@ -311,18 +307,16 @@ export async function getWeeklySalesStats(
   client: ClientConfig,
   weeks: number
 ): Promise<WeeklySalesStats[]> {
-  const { pipelineId, quoteSentStageId, closedStageId } = await findStageIds(client);
   const buckets = getWeekBuckets(weeks);
   const { startTime, endTime } = getRangeMillis(weeks);
+  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
+    client,
+    startTime,
+    endTime
+  );
 
-  const [quoteOpps, closedOpps] = await Promise.all([
-    quoteSentStageId
-      ? fetchStageOpportunities(client, pipelineId, quoteSentStageId, startTime, endTime)
-      : Promise.resolve([]),
-    closedStageId
-      ? fetchStageOpportunities(client, pipelineId, closedStageId, startTime, endTime)
-      : Promise.resolve([]),
-  ]);
+  const quoteSentNames = new Set(client.ghlQuoteSentStageNames ?? DEFAULT_QUOTE_SENT_STAGES);
+  const closedNames = new Set(client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES);
 
   const result: WeeklySalesStats[] = buckets.map((b) => ({
     weekIndex: b.index,
@@ -332,22 +326,20 @@ export async function getWeeklySalesStats(
     closedRevenue: 0,
   }));
 
-  for (const opp of quoteOpps) {
+  for (const opp of opportunities) {
     const idx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
     if (idx === null) continue;
-    result[idx].quotesSent += 1;
-    result[idx].quotesSentRevenue += opp.monetaryValue ?? 0;
-  }
-
-  for (const opp of closedOpps) {
-    const idx = opp.lastStageChangeAt
-      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
-      : null;
-    if (idx === null) continue;
-    result[idx].closed += 1;
-    result[idx].closedRevenue += opp.monetaryValue ?? 0;
+    const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
+    if (quoteSentNames.has(stageName)) {
+      result[idx].quotesSent += 1;
+      result[idx].quotesSentRevenue += opp.monetaryValue ?? 0;
+    }
+    if (closedNames.has(stageName)) {
+      result[idx].closed += 1;
+      result[idx].closedRevenue += opp.monetaryValue ?? 0;
+    }
   }
 
   return result;

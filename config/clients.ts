@@ -5,9 +5,10 @@ import type { ClientConfig } from "@/types";
  * Each client also needs a GHL Private Integration Token in env var
  * GHL_TOKEN_<SLUG_UPPER_SNAKE> (e.g. GHL_TOKEN_EXCEL_ROOFING) — see lib/ghl.ts.
  *
- * ghlPipelineName, ghlQuoteSentStageName and ghlClosedStageName are still
- * placeholder defaults from lib/ghl.ts ("Sales Pipeline" / "Quote Sent" /
- * "Closed Won") — real pipeline/stage names to be confirmed last.
+ * One Day Roofing still uses lib/ghl.ts's placeholder defaults for
+ * ghlPipelineName/ghlQuoteSentStageNames/ghlClosedStageNames ("Sales
+ * Pipeline" / "Quote Sent" / "Closed Won") — real pipeline/stage names not
+ * yet confirmed for that client.
  */
 export const clients: ClientConfig[] = [
   {
@@ -85,6 +86,39 @@ export const clients: ClientConfig[] = [
     ghlLocationId: "ZamGgQEEEFmbnEaCE2ru",
     // Manual Booking, Free Design Visit Appointment
     ghlCalendarIds: ["eYnFUn36MWEDuyv5BPq6", "jOlkgFgxZinYvHUWo7uq"],
+    // Real "Meta Ads" pipeline mapped via the GHL MCP 2026-07-27 (only pipeline
+    // in use — "AI Quote Follow Up" also exists but has 0 opportunities and is
+    // intentionally ignored, confirmed with the user). Single active service
+    // line right now: kitchen cabinet refacing (a separate roofing survey is
+    // defined in this location's custom fields but unused/legacy — confirmed
+    // with the user, not a second live funnel to design around).
+    //
+    // There's no separate "quote sent" step here — the in-home visit itself
+    // delivers the quote (the stage is literally named "Showed and Quoted"),
+    // so quotesSent and the pipeline-based show count share the same stage
+    // set: everyone who reached "Showed and Quoted" or any stage downstream
+    // of it (they don't move backward out of this set once they're in it).
+    //
+    // Confirmed with the user: the pipeline stage is the reliable source for
+    // show/no-show/cancelled — neither the calendar's own appointmentStatus
+    // nor the "Customer Status" custom field are kept in sync (found stale in
+    // concrete cases, e.g. an opportunity already at "Closed" whose calendar
+    // event still said "confirmed"). ghlShowStatus is deliberately left unset
+    // so getAppointmentStats uses ghlShowStageNames instead of calendar status.
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Showed and Quoted",
+      "In AI Quote Followup Sequence",
+      "Closed",
+      "Quote Rejected - Job Lost",
+    ],
+    ghlClosedStageNames: ["Closed"],
+    ghlShowStageNames: [
+      "Showed and Quoted",
+      "In AI Quote Followup Sequence",
+      "Closed",
+      "Quote Rejected - Job Lost",
+    ],
   },
 ];
 

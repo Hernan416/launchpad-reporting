@@ -125,9 +125,10 @@ export default async function ClientDashboardPage({
       <Suspense
         fallback={
           <div className="space-y-8">
-            <ChartGridSkeleton count={2} accent="blue" />
-            <ChartGridSkeleton count={2} accent="blue" />
-            <ChartGridSkeleton count={2} accent="gold" />
+            <div className="h-64 w-full animate-pulse rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#1e2128]" />
+            <ChartGridSkeleton count={3} accent="blue" />
+            <ChartGridSkeleton count={4} accent="blue" />
+            <ChartGridSkeleton count={4} accent="gold" />
             <ChartGridSkeleton count={3} accent="blue" />
           </div>
         }

@@ -51,12 +51,15 @@ export interface ClientConfig {
   ghlLocationId: string;
   /** Calendars to pull booked appointments from (summed) — a client can run appointments across several calendars (e.g. per service line). */
   ghlCalendarIds?: string[];
-  /** appointmentStatus value that counts as "showed". */
+  /** appointmentStatus value that counts as "showed" — ignored when ghlShowStageNames is set. */
   ghlShowStatus?: string;
-  /** Pipeline to read for sales-stage counts (quotes sent, closed). */
+  /** Pipeline to read for sales-stage counts (quotes sent, closed, and — when ghlShowStageNames is set — shows). */
   ghlPipelineName?: string;
-  ghlQuoteSentStageName?: string;
-  ghlClosedStageName?: string;
+  /** Stage names counted as "quote sent" — plural because a status can span several downstream stages (e.g. a client whose quote is given at the same time as the visit, so "quoted" plus everything reached after it all count). */
+  ghlQuoteSentStageNames?: string[];
+  ghlClosedStageNames?: string[];
+  /** When set, "shows" for the standard dashboard come from these stage names in ghlPipelineName (opportunities created within the period, current-stage snapshot) instead of the calendar's appointmentStatus field. Needed when a client's automation doesn't keep the calendar status reliably in sync with the real pipeline stage. */
+  ghlShowStageNames?: string[];
   /** Used instead of the standard Meta+GHL report when showMetaAds is false. */
   customFunnel?: CustomFunnelConfig;
 }
