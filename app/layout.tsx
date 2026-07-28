@@ -29,7 +29,17 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Runs before paint so the correct theme applies with no flash —
+            can't happen after hydration, hence the inline (not React) script. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var stored=localStorage.getItem("theme");var wantsDark=stored?stored==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;if(wantsDark){document.documentElement.classList.add("dark");}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

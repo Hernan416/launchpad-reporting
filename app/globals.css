@@ -1,8 +1,51 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggled via ThemeToggle) instead of the v4 default
+   prefers-color-scheme-only `dark:` variant. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f4f6fa;
   --foreground: #0a0a0a;
+
+  /* Recharts reads these as plain hex/rgba strings via lib/accents.ts, so
+     chart colors follow the theme without each chart component needing to
+     know which theme is active. */
+  --chart-blue-strong: #0067eb;
+  --chart-blue-soft: #5aa6ff;
+  --chart-gold-strong: #b8860b;
+  --chart-gold-soft: #ffcf00;
+  --chart-grid: #e2e8f0;
+  --chart-tick: #64748b;
+  --chart-neutral: #cbd5e1;
+  --chart-palette-1: #0067eb;
+  --chart-palette-2: #b8860b;
+  --chart-palette-3: #5aa6ff;
+  --chart-palette-4: #1a1a1a;
+  --chart-palette-5: #003d94;
+  --chart-palette-6: #ffcf00;
+}
+
+/* A soft near-black rather than true black — golaunchpad.co's own dark
+   surfaces, but lightened and paired with off-white text to keep contrast
+   comfortable instead of stark white-on-black. */
+.dark {
+  --background: #16181d;
+  --foreground: #e8e9ec;
+
+  --chart-blue-strong: #4d9fff;
+  --chart-blue-soft: #7ab8ff;
+  --chart-gold-strong: #ffcf00;
+  --chart-gold-soft: #ffe066;
+  --chart-grid: rgba(232, 233, 236, 0.1);
+  --chart-tick: rgba(232, 233, 236, 0.5);
+  --chart-neutral: rgba(232, 233, 236, 0.15);
+  --chart-palette-1: #4d9fff;
+  --chart-palette-2: #ffcf00;
+  --chart-palette-3: #7ab8ff;
+  --chart-palette-4: #e8e9ec;
+  --chart-palette-5: #2a5db0;
+  --chart-palette-6: #ffe066;
 }
 
 @theme inline {

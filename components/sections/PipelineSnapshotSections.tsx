@@ -17,12 +17,12 @@ export async function PipelineSnapshotSections({
 
   return (
     <div className="space-y-8">
-      <p className="text-right text-sm text-slate-500">
+      <p className="text-right text-sm text-slate-500 dark:text-white/55">
         Updated: {new Date(report.updatedAt).toLocaleString("en-US")}
       </p>
 
       {report.warnings.length > 0 && (
-        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
           <ul className="list-inside list-disc">
             {report.warnings.map((warning) => (
               <li key={warning}>{warning}</li>

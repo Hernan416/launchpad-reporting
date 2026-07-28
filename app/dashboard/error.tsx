@@ -14,10 +14,10 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6fa] px-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Something went wrong</h2>
-        <p className="mt-2 text-sm text-slate-500">
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f6fa] px-4 dark:bg-[#16181d]">
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-white/10 dark:bg-[#1e2128]">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white/90">Something went wrong</h2>
+        <p className="mt-2 text-sm text-slate-500 dark:text-white/55">
           We couldn&apos;t load the client list. Please try again.
         </p>
         <button

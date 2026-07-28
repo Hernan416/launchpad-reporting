@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function LoginPage({
   searchParams,
@@ -33,17 +34,20 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6fa] px-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#f4f6fa] px-4 dark:bg-[#16181d]">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-[#1e2128]">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-white/90">
           Launchpad AI Reporting
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-white/55">
           Sign in to view your reports.
         </p>
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
             Invalid email or password.
           </p>
         )}
@@ -52,7 +56,7 @@ export default async function LoginPage({
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-slate-700"
+              className="block text-sm font-medium text-slate-700 dark:text-white/70"
             >
               Email
             </label>
@@ -61,13 +65,13 @@ export default async function LoginPage({
               name="email"
               type="email"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb]"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb] dark:border-white/15 dark:bg-[#16181d] dark:text-white/90"
             />
           </div>
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-slate-700"
+              className="block text-sm font-medium text-slate-700 dark:text-white/70"
             >
               Password
             </label>
@@ -76,7 +80,7 @@ export default async function LoginPage({
               name="password"
               type="password"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb]"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb] dark:border-white/15 dark:bg-[#16181d] dark:text-white/90"
             />
           </div>
           <button

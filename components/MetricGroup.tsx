@@ -14,7 +14,7 @@ export function MetricGroup({
   return (
     <section>
       <h2
-        className={`mb-3 border-l-4 pl-3 text-lg font-semibold text-slate-900 ${classes.border}`}
+        className={`mb-3 border-l-4 pl-3 text-lg font-semibold text-slate-900 dark:text-white/90 ${classes.border}`}
       >
         {title}
       </h2>

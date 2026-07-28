@@ -3,10 +3,10 @@ import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@
 
 export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1e2128]">
       <table className="w-full min-w-[900px] text-left text-sm">
         <thead>
-          <tr className="bg-[#0067eb]/10 text-[#003d78]">
+          <tr className="bg-[#0067eb]/10 text-[#003d78] dark:bg-[#0067eb]/20 dark:text-[#7ab8ff]">
             <th className="px-4 py-3 font-semibold">Week</th>
             <th className="px-4 py-3 font-semibold">Ad Spend</th>
             <th className="px-4 py-3 font-semibold">Leads</th>
@@ -24,9 +24,9 @@ export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
           {data.map((week) => (
             <tr
               key={week.weekStart}
-              className="border-t border-slate-100 hover:bg-slate-50"
+              className="border-t border-slate-100 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5"
             >
-              <td className="px-4 py-3 font-medium text-slate-900">
+              <td className="px-4 py-3 font-medium text-slate-900 dark:text-white/90">
                 {week.weekLabel}
               </td>
               <td className="px-4 py-3">{formatCurrency(week.adSpend)}</td>
@@ -35,7 +35,7 @@ export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
               <td className="px-4 py-3">{formatNumber(week.shows)}</td>
               <td className="px-4 py-3">{formatNumber(week.quotesSent)}</td>
               <td className="px-4 py-3">{formatNumber(week.closed)}</td>
-              <td className="px-4 py-3 font-semibold text-[#8a6d00]">
+              <td className="px-4 py-3 font-semibold text-[#8a6d00] dark:text-[#ffcf00]">
                 {formatCurrency(week.revenueClosed)}
               </td>
               <td className="px-4 py-3">{formatCurrency(week.cac)}</td>

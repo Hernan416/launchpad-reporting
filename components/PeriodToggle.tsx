@@ -14,7 +14,7 @@ export function PeriodToggle({
   ];
 
   return (
-    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-[#1e2128]">
       {options.map((option) => {
         const active = option.value === period;
         return (
@@ -24,7 +24,7 @@ export function PeriodToggle({
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
                 ? "bg-[#0067eb] text-white"
-                : "text-slate-600 hover:text-[#0067eb]"
+                : "text-slate-600 hover:text-[#0067eb] dark:text-white/60 dark:hover:text-[#ffcf00]"
             }`}
           >
             {option.label}

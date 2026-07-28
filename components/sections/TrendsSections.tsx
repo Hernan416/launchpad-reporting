@@ -103,7 +103,7 @@ export async function TrendsSections({
       </div>
 
       <div>
-        <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900">
+        <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
           Weekly Detail — Last {weeks} Weeks
         </h2>
         <WeeklyTable data={trends} />

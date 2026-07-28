@@ -2,9 +2,9 @@
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { WeeklyDataPoint } from "@/types";
-import { ACCENT_HEX } from "@/lib/accents";
+import { ACCENT_HEX, CHART_NEUTRAL } from "@/lib/accents";
 
-const COLORS = [ACCENT_HEX.blue.strong, "#cbd5e1"];
+const COLORS = [ACCENT_HEX.blue.strong, CHART_NEUTRAL];
 
 export function ShowRateDonut({ data }: { data: WeeklyDataPoint[] }) {
   const totalShows = data.reduce((sum, d) => sum + d.shows, 0);
