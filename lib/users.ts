@@ -4,7 +4,7 @@ let cached: AppUser[] | null = null;
 
 /**
  * APP_USERS_BASE64 is a base64-encoded JSON array of
- * {email, passwordHash, role, clientSlug?, name?}.
+ * {username, passwordHash, role, clientSlug?, name?}.
  *
  * Base64 is used (rather than raw JSON) because bcrypt hashes contain `$`
  * characters that Next.js's .env loader interprets as variable

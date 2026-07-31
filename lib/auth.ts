@@ -9,16 +9,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        const email = credentials?.email as string | undefined;
+        const username = credentials?.username as string | undefined;
         const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
+        if (!username || !password) return null;
 
         const user = getAppUsers().find(
-          (u) => u.email.toLowerCase() === email.toLowerCase()
+          (u) => u.username.toLowerCase() === username.toLowerCase()
         );
         if (!user) return null;
 
@@ -26,9 +26,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!valid) return null;
 
         return {
-          id: user.email,
-          email: user.email,
-          name: user.name ?? user.email,
+          id: user.username,
+          name: user.name ?? user.username,
           role: user.role,
           clientSlug: user.clientSlug,
         };

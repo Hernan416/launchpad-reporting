@@ -19,7 +19,7 @@ export default async function LoginPage({
     "use server";
     try {
       await signIn("credentials", {
-        email: formData.get("email"),
+        username: formData.get("username"),
         password: formData.get("password"),
         redirectTo: destination,
       });
@@ -48,22 +48,23 @@ export default async function LoginPage({
 
         {error && (
           <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
-            Invalid email or password.
+            Invalid username or password.
           </p>
         )}
 
         <form action={authenticate} className="mt-6 space-y-4">
           <div>
             <label
-              htmlFor="email"
+              htmlFor="username"
               className="block text-sm font-medium text-slate-700 dark:text-white/70"
             >
-              Email
+              Username
             </label>
             <input
-              id="email"
-              name="email"
-              type="email"
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
               required
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb] dark:border-white/15 dark:bg-[#16181d] dark:text-white/90"
             />

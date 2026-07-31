@@ -1,7 +1,7 @@
 export type Role = "master" | "client";
 
 export interface AppUser {
-  email: string;
+  username: string;
   passwordHash: string;
   role: Role;
   /** Required when role is "client". Must match a slug in config/clients.ts */
