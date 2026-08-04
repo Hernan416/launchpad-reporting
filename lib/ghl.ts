@@ -12,8 +12,25 @@ const DEFAULT_CLOSED_STAGES = ["Closed Won"];
 interface CalendarEvent {
   appointmentStatus?: string;
   startTime?: string;
+  contactId?: string;
 }
 
+/**
+ * Rescheduling an appointment doesn't always move or delete its calendar
+ * event — sometimes GHL leaves the original event in place with
+ * appointmentStatus flipped to "invalid" and creates a brand new event for
+ * the new time; other times (e.g. a lead re-booking through the widget
+ * without going through a formal reschedule flow) the original event is
+ * left as "confirmed" and a second, third, etc. event is created alongside
+ * it with no status change at all. Confirmed across One Day Roofing, US
+ * Home Pro, and JJ Roofing (2026-08-04/05) — including one US Home Pro
+ * contact with three separate "confirmed" events booked the same day.
+ * Counting raw event length treats every one of these as a brand new
+ * appointment. Fixed in two steps in fetchCalendarEvents: drop "invalid"
+ * events, then collapse whatever's left down to one event per contactId
+ * (keeping the latest startTime) so a lead who booked/rebooked N times
+ * still counts as exactly one appointment.
+ */
 interface CalendarEventsResponse {
   events: CalendarEvent[];
 }
@@ -155,7 +172,36 @@ async function fetchCalendarEvents(
     )
   );
 
-  return perCalendar.flatMap((data) => data.events ?? []);
+  return dedupeEventsByContact(
+    perCalendar.flatMap((data) => data.events ?? []).filter((e) => e.appointmentStatus !== "invalid")
+  );
+}
+
+/**
+ * Collapses multiple calendar events for the same contact down to one —
+ * the one with the latest startTime — so a lead who booked/rebooked more
+ * than once (see the CalendarEvent comment above) counts as a single
+ * appointment. Events with no contactId are kept as-is rather than merged
+ * into each other.
+ */
+function dedupeEventsByContact(events: CalendarEvent[]): CalendarEvent[] {
+  const latestByContact = new Map<string, CalendarEvent>();
+  const withoutContact: CalendarEvent[] = [];
+
+  for (const event of events) {
+    if (!event.contactId) {
+      withoutContact.push(event);
+      continue;
+    }
+    const existing = latestByContact.get(event.contactId);
+    const eventTime = event.startTime ? new Date(event.startTime).getTime() : 0;
+    const existingTime = existing?.startTime ? new Date(existing.startTime).getTime() : -Infinity;
+    if (!existing || eventTime > existingTime) {
+      latestByContact.set(event.contactId, event);
+    }
+  }
+
+  return [...latestByContact.values(), ...withoutContact];
 }
 
 /**

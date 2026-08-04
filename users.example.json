@@ -1,11 +1,11 @@
 [
   {
-    "email": "team@launchpadai.co",
+    "username": "admin",
     "passwordHash": "$2b$10$REPLACE_ME",
     "role": "master"
   },
   {
-    "email": "owner@excelroofing.com",
+    "username": "Excel_Roofing",
     "passwordHash": "$2b$10$REPLACE_ME",
     "role": "client",
     "clientSlug": "excel-roofing"
