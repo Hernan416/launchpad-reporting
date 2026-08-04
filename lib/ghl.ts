@@ -1,5 +1,6 @@
 import type { ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
-import { bucketIndexForDate, getRangeMillis, getWeekBuckets } from "@/lib/weeks";
+import { bucketIndexForDate, rangeFromBuckets } from "@/lib/weeks";
+import type { WeekBucket } from "@/lib/weeks";
 
 const API_BASE = "https://services.leadconnectorhq.com";
 const API_VERSION = "2021-07-28";
@@ -139,11 +140,22 @@ async function ghlFetch<T>(
   return (await res.json()) as T;
 }
 
-function periodToRange(period: Period): { startTime: number; endTime: number } {
+function periodToRange(period: Period, client: ClientConfig): { startTime: number; endTime: number } {
   const endTime = Date.now();
+  if (period === "lifetime") {
+    return { startTime: clientSinceMillis(client), endTime };
+  }
   const days = period === "30d" ? 30 : 7;
-  const startTime = endTime - days * 24 * 60 * 60 * 1000;
-  return { startTime, endTime };
+  return { startTime: endTime - days * 24 * 60 * 60 * 1000, endTime };
+}
+
+function clientSinceMillis(client: ClientConfig): number {
+  if (!client.clientSince) {
+    throw new Error(
+      `${client.slug} is missing clientSince in config/clients.ts — required for the lifetime view.`
+    );
+  }
+  return new Date(`${client.clientSince}T00:00:00Z`).getTime();
 }
 
 function requireCalendarIds(client: ClientConfig): string[] {
@@ -246,7 +258,7 @@ export async function getAppointmentStats(
   period: Period
 ): Promise<GhlAppointmentStats> {
   const calendarIds = requireCalendarIds(client);
-  const { startTime, endTime } = periodToRange(period);
+  const { startTime, endTime } = periodToRange(period, client);
   const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
   const appointments = events.length;
 
@@ -272,11 +284,10 @@ export async function getAppointmentStats(
 
 export async function getWeeklyAppointmentStats(
   client: ClientConfig,
-  weeks: number
+  buckets: WeekBucket[]
 ): Promise<WeeklyAppointmentStats[]> {
   const calendarIds = requireCalendarIds(client);
-  const buckets = getWeekBuckets(weeks);
-  const { startTime, endTime } = getRangeMillis(weeks);
+  const { startTime, endTime } = rangeFromBuckets(buckets);
   const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
 
   const result: WeeklyAppointmentStats[] = buckets.map((b) => ({
@@ -331,7 +342,7 @@ export async function getSalesStats(
   client: ClientConfig,
   period: Period
 ): Promise<GhlSalesStats> {
-  const { startTime, endTime } = periodToRange(period);
+  const { startTime, endTime } = periodToRange(period, client);
   const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
     client,
     startTime,
@@ -355,10 +366,9 @@ export async function getSalesStats(
 
 export async function getWeeklySalesStats(
   client: ClientConfig,
-  weeks: number
+  buckets: WeekBucket[]
 ): Promise<WeeklySalesStats[]> {
-  const buckets = getWeekBuckets(weeks);
-  const { startTime, endTime } = getRangeMillis(weeks);
+  const { startTime, endTime } = rangeFromBuckets(buckets);
   const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
     client,
     startTime,
@@ -552,7 +562,7 @@ export async function getPipelineFunnelStats(
     getPipelineByName(client, config.pipelineName),
     getPipelineByName(client, config.showsPipelineName),
   ]);
-  const { startTime, endTime } = periodToRange(period);
+  const { startTime, endTime } = periodToRange(period, client);
 
   const [quoteOpportunities, leadOpportunities] = await Promise.all([
     fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
@@ -628,14 +638,13 @@ export interface WeeklyPipelineFunnelStats {
 export async function getWeeklyPipelineFunnelStats(
   client: ClientConfig,
   config: CustomFunnelConfig,
-  weeks: number
+  buckets: WeekBucket[]
 ): Promise<WeeklyPipelineFunnelStats[]> {
   const [pipeline, showsPipeline] = await Promise.all([
     getPipelineByName(client, config.pipelineName),
     getPipelineByName(client, config.showsPipelineName),
   ]);
-  const buckets = getWeekBuckets(weeks);
-  const { startTime, endTime } = getRangeMillis(weeks);
+  const { startTime, endTime } = rangeFromBuckets(buckets);
 
   const [quoteOpportunities, leadOpportunities] = await Promise.all([
     fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),

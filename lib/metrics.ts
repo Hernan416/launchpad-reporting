@@ -16,10 +16,26 @@ import {
   getWeeklyPipelineFunnelStats,
   getWeeklySalesStats,
 } from "@/lib/ghl";
-import { getWeekBuckets } from "@/lib/weeks";
+import { getWeekBuckets, getWeekBucketsFrom } from "@/lib/weeks";
+import type { WeekBucket } from "@/lib/weeks";
 
 function safeDivide(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0;
+}
+
+/**
+ * Resolves the weekly-trend buckets for a period: the usual trailing
+ * `weeks` weeks for "7d"/"30d", or every week since the client's
+ * clientSince date for "lifetime" (see ClientConfig.clientSince).
+ */
+function resolveTrendBuckets(period: Period, weeks: number, clientSince?: string): WeekBucket[] {
+  if (period === "lifetime") {
+    if (!clientSince) {
+      throw new Error("resolveTrendBuckets: the lifetime period requires clientSince.");
+    }
+    return getWeekBucketsFrom(new Date(`${clientSince}T00:00:00Z`));
+  }
+  return getWeekBuckets(weeks);
 }
 
 const EMPTY_META: MetaInsights = {
@@ -49,7 +65,8 @@ export async function getClientReport(
       client.metaAdAccountId,
       period,
       client.metaLeadActionType,
-      client.metaLandingPageViewActionType
+      client.metaLandingPageViewActionType,
+      client.clientSince
     ),
     getAppointmentStats(client, period),
     getSalesStats(client, period),
@@ -146,6 +163,7 @@ export async function getClientReport(
  */
 export async function getClientTrends(
   slug: string,
+  period: Period,
   weeks: number = 4
 ): Promise<WeeklyDataPoint[]> {
   const client = getClientBySlug(slug);
@@ -153,17 +171,17 @@ export async function getClientTrends(
     throw new Error(`Unknown client slug: ${slug}`);
   }
 
-  const buckets = getWeekBuckets(weeks);
+  const buckets = resolveTrendBuckets(period, weeks, client.clientSince);
 
   const [metaResult, apptResult, salesResult] = await Promise.allSettled([
     getMetaWeeklyInsights(
       client.metaAdAccountId,
-      weeks,
+      buckets,
       client.metaLeadActionType,
       client.metaLandingPageViewActionType
     ),
-    getWeeklyAppointmentStats(client, weeks),
-    getWeeklySalesStats(client, weeks),
+    getWeeklyAppointmentStats(client, buckets),
+    getWeeklySalesStats(client, buckets),
   ]);
 
   if (metaResult.status === "rejected") {
@@ -286,6 +304,7 @@ export async function getPipelineFunnelReport(
 /** Week-by-week version of getPipelineFunnelReport, for the custom funnel's trend charts. */
 export async function getPipelineFunnelTrends(
   slug: string,
+  period: Period,
   weeks: number = 4
 ): Promise<WeeklyPipelineDataPoint[]> {
   const client = getClientBySlug(slug);
@@ -296,7 +315,7 @@ export async function getPipelineFunnelTrends(
     throw new Error(`${slug} has no customFunnel config in config/clients.ts.`);
   }
 
-  const buckets = getWeekBuckets(weeks);
+  const buckets = resolveTrendBuckets(period, weeks, client.clientSince);
   const empty = {
     totalLeads: 0,
     leadsBySource: [] as LeadSourceCount[],
@@ -312,7 +331,7 @@ export async function getPipelineFunnelTrends(
 
   let weekly: Awaited<ReturnType<typeof getWeeklyPipelineFunnelStats>> = [];
   try {
-    weekly = await getWeeklyPipelineFunnelStats(client, client.customFunnel, weeks);
+    weekly = await getWeeklyPipelineFunnelStats(client, client.customFunnel, buckets);
   } catch (err) {
     console.error(`[metrics] GHL weekly pipeline funnel fetch failed for ${slug}:`, err);
   }

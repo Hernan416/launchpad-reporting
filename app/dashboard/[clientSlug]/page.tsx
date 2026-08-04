@@ -57,7 +57,31 @@ export default async function ClientDashboardPage({
     notFound();
   }
 
-  const period: Period = periodParam === "30d" ? "30d" : "7d";
+  // "lifetime" is only a valid choice for clients with a clientSince date
+  // configured (see ClientConfig.clientSince) — otherwise fall back to 7d
+  // rather than let a stale/guessed URL hit the "missing clientSince" error.
+  const requestedPeriod: Period =
+    periodParam === "30d" ? "30d" : periodParam === "lifetime" ? "lifetime" : "7d";
+  const period: Period = requestedPeriod === "lifetime" && !client.clientSince ? "7d" : requestedPeriod;
+
+  // clientSince is a date-only string, parsed as UTC midnight — format it in
+  // UTC too, or a server running west of UTC (e.g. America/Caracas) renders
+  // "2026-04-12" as "Apr 11".
+  const clientSinceLabel = client.clientSince
+    ? new Date(`${client.clientSince}T00:00:00Z`).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : undefined;
+  const rangeHeading =
+    period === "lifetime" && clientSinceLabel ? `Since ${clientSinceLabel}` : `Last ${TREND_WEEKS} Weeks`;
+  const rangePhrase =
+    period === "lifetime" && clientSinceLabel
+      ? `since ${clientSinceLabel}`
+      : `the last ${TREND_WEEKS} weeks`;
+
   const topNav =
     session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;
 
@@ -65,11 +89,11 @@ export default async function ClientDashboardPage({
   // around their actual sales pipeline instead of the standard Meta+GHL report.
   if (client.showMetaAds === false) {
     const funnelReportPromise = getPipelineFunnelReport(clientSlug, period);
-    const funnelTrendsPromise = getPipelineFunnelTrends(clientSlug, TREND_WEEKS);
+    const funnelTrendsPromise = getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS);
 
     return (
       <DashboardShell title={client.name} topNav={topNav}>
-        <PeriodToggle slug={clientSlug} period={period} />
+        <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
 
         <Suspense
           fallback={
@@ -92,7 +116,11 @@ export default async function ClientDashboardPage({
             </div>
           }
         >
-          <PipelineTrendsSections trendsPromise={funnelTrendsPromise} weeks={TREND_WEEKS} />
+          <PipelineTrendsSections
+            trendsPromise={funnelTrendsPromise}
+            rangeHeading={rangeHeading}
+            rangePhrase={rangePhrase}
+          />
         </Suspense>
       </DashboardShell>
     );
@@ -103,11 +131,11 @@ export default async function ClientDashboardPage({
   // before the slower weekly trend charts finish (see Next's docs on
   // streaming: start the fetch during render, pass the promise down).
   const reportPromise = getClientReport(clientSlug, period);
-  const trendsPromise = getClientTrends(clientSlug, TREND_WEEKS);
+  const trendsPromise = getClientTrends(clientSlug, period, TREND_WEEKS);
 
   return (
     <DashboardShell title={client.name} topNav={topNav}>
-      <PeriodToggle slug={clientSlug} period={period} />
+      <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
 
       <Suspense
         fallback={
@@ -133,7 +161,11 @@ export default async function ClientDashboardPage({
           </div>
         }
       >
-        <TrendsSections trendsPromise={trendsPromise} weeks={TREND_WEEKS} />
+        <TrendsSections
+          trendsPromise={trendsPromise}
+          rangeHeading={rangeHeading}
+          rangePhrase={rangePhrase}
+        />
       </Suspense>
     </DashboardShell>
   );

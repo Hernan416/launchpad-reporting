@@ -81,6 +81,8 @@ export const clients: ClientConfig[] = [
     // 100%. "link_click" (187 in the same window) is the best available
     // proxy for "reached the conversion surface" for this client.
     metaLandingPageViewActionType: "link_click",
+    // Client's own start date with us, per the user 2026-08-05 — anchors the Lifetime period.
+    clientSince: "2026-04-04",
     ghlLocationId: "6DiccF7Ccfm34ctwznt3",
     // In-Home Roof Estimate ("Testing" calendar excluded — 0 events, confirmed dummy)
     ghlCalendarIds: ["RyVQrAhULnwIxgCXH0uX"],
@@ -120,6 +122,8 @@ export const clients: ClientConfig[] = [
     slug: "us-home-pro",
     name: "US Home Pro",
     metaAdAccountId: "act_1309927616632065",
+    // Client's own start date with us, per the user 2026-08-05 — anchors the Lifetime period.
+    clientSince: "2026-06-11",
     ghlLocationId: "ZamGgQEEEFmbnEaCE2ru",
     // Manual Booking, Free Design Visit Appointment
     ghlCalendarIds: ["eYnFUn36MWEDuyv5BPq6", "jOlkgFgxZinYvHUWo7uq"],
@@ -161,6 +165,8 @@ export const clients: ClientConfig[] = [
     slug: "jj-roofing",
     name: "JJ Roofing",
     metaAdAccountId: "act_1757690398122189",
+    // Client's own start date with us, per the user 2026-08-05 — anchors the Lifetime period.
+    clientSince: "2026-04-12",
     ghlLocationId: "8ZAnZs0waICI9kZ8hE23",
     // Roof Estimates (in-person), MANUAL BOOKING - Roof Estimates (in-person)
     ghlCalendarIds: ["6DDI0zvqHt7fsZny08vB", "yh0U7Sv8J2J6dGfvRiqE"],

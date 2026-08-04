@@ -64,9 +64,11 @@ export interface ClientConfig {
   ghlShowStageNames?: string[];
   /** Used instead of the standard Meta+GHL report when showMetaAds is false. */
   customFunnel?: CustomFunnelConfig;
+  /** ISO date (YYYY-MM-DD) this client started working with us — the anchor for the "lifetime" period. The Lifetime option in PeriodToggle is only shown when this is set. */
+  clientSince?: string;
 }
 
-export type Period = "7d" | "30d";
+export type Period = "7d" | "30d" | "lifetime";
 
 export interface MetaMetrics {
   spend: number;

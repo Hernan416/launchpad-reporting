@@ -15,26 +15,26 @@ import { AppointmentsOutcomeDonut } from "@/components/charts/AppointmentsOutcom
  */
 export async function PipelineTrendsSections({
   trendsPromise,
-  weeks,
+  rangeHeading,
+  rangePhrase,
 }: {
   trendsPromise: Promise<WeeklyPipelineDataPoint[]>;
-  weeks: number;
+  /** e.g. "Last 4 Weeks" or "Since Apr 4, 2026" (lifetime view) — see app/dashboard/[clientSlug]/page.tsx. */
+  rangeHeading: string;
+  /** Lowercase phrase form of rangeHeading, e.g. "the last 4 weeks" or "since Apr 4, 2026". */
+  rangePhrase: string;
 }) {
   const trends = await trendsPromise;
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard
-          title={`Leads — Last ${weeks} Weeks`}
-          subtitle="Total leads per week"
-          accent="blue"
-        >
+        <ChartCard title={`Leads — ${rangeHeading}`} subtitle="Total leads per week" accent="blue">
           <LeadsTrendChart data={trends} />
         </ChartCard>
         <ChartCard
           title="Leads by Source"
-          subtitle={`Total across the last ${weeks} weeks`}
+          subtitle={`Total across ${rangePhrase}`}
           accent="blue"
         >
           <LeadSourcesDonut data={trends} />
@@ -43,7 +43,7 @@ export async function PipelineTrendsSections({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard
-          title={`Quotes — Last ${weeks} Weeks`}
+          title={`Quotes — ${rangeHeading}`}
           subtitle="Sent, Yes, No and Reviewing, per week"
           accent="gold"
         >
@@ -60,7 +60,7 @@ export async function PipelineTrendsSections({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard
-          title={`Appointments — Last ${weeks} Weeks`}
+          title={`Appointments — ${rangeHeading}`}
           subtitle="Booked, Cancelled and Lost, per week"
           accent="blue"
         >
@@ -68,7 +68,7 @@ export async function PipelineTrendsSections({
         </ChartCard>
         <ChartCard
           title="Appointments Outcome"
-          subtitle={`Total across the last ${weeks} weeks`}
+          subtitle={`Total across ${rangePhrase}`}
           accent="blue"
         >
           <AppointmentsOutcomeDonut data={trends} />

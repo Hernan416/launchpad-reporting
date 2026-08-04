@@ -4,13 +4,17 @@ import type { Period } from "@/types";
 export function PeriodToggle({
   slug,
   period,
+  showLifetime = false,
 }: {
   slug: string;
   period: Period;
+  /** Only shown once a client has a clientSince date configured (see ClientConfig.clientSince) — otherwise there's no real anchor for "lifetime". */
+  showLifetime?: boolean;
 }) {
   const options: { value: Period; label: string }[] = [
     { value: "7d", label: "Last 7 days" },
     { value: "30d", label: "Last 30 days" },
+    ...(showLifetime ? [{ value: "lifetime" as const, label: "Lifetime" }] : []),
   ];
 
   return (

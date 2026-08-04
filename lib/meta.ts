@@ -1,9 +1,9 @@
 import type { Period } from "@/types";
-import { getWeekBuckets } from "@/lib/weeks";
+import type { WeekBucket } from "@/lib/weeks";
 
 const GRAPH_API_VERSION = "v21.0";
 
-const DATE_PRESET: Record<Period, string> = {
+const DATE_PRESET: Record<"7d" | "30d", string> = {
   "7d": "last_7d",
   "30d": "last_30d",
 };
@@ -115,33 +115,51 @@ async function fetchInsights(
  * exceed 100%. Override to "link_click" (or whatever's the best proxy for
  * "reached the conversion surface") once verified against real ad data —
  * confirmed necessary for One Day Roofing 2026-07-28.
+ *
+ * `sinceDate` (ISO "YYYY-MM-DD") is required when period is "lifetime" —
+ * Meta has no date_preset for "since this client started with us", so that
+ * case uses an explicit time_range from sinceDate through today instead.
  */
 export async function getMetaInsights(
   adAccountId: string,
   period: Period,
   leadActionType: string = "lead",
-  landingPageViewActionType: string = "landing_page_view"
+  landingPageViewActionType: string = "landing_page_view",
+  sinceDate?: string
 ): Promise<MetaInsights> {
   const params = new URLSearchParams({
     fields: "spend,clicks,impressions,ctr,cpc,actions",
-    date_preset: DATE_PRESET[period],
   });
+
+  if (period === "lifetime") {
+    if (!sinceDate) {
+      throw new Error("getMetaInsights: the lifetime period requires sinceDate.");
+    }
+    params.set(
+      "time_range",
+      JSON.stringify({ since: sinceDate, until: new Date().toISOString().slice(0, 10) })
+    );
+  } else {
+    params.set("date_preset", DATE_PRESET[period]);
+  }
 
   const data = await fetchInsights(adAccountId, params);
   return parseRow(data[0], leadActionType, landingPageViewActionType);
 }
 
 /**
- * One row per 7-day bucket over the trailing `weeks` weeks, via Meta's
- * native time_increment (a single API call, no per-week fan-out).
+ * One row per 7-day bucket spanning `buckets`, via Meta's native
+ * time_increment (a single API call, no per-week fan-out). `buckets` comes
+ * from the same lib/weeks.ts helper GHL's weekly stats use, so rows line up
+ * across sources whether it's the usual trailing-N-weeks view or the
+ * lifetime view's buckets running from a client's clientSince date.
  */
 export async function getMetaWeeklyInsights(
   adAccountId: string,
-  weeks: number,
+  buckets: WeekBucket[],
   leadActionType: string = "lead",
   landingPageViewActionType: string = "landing_page_view"
 ): Promise<WeeklyMetaInsights[]> {
-  const buckets = getWeekBuckets(weeks);
   const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
 
   const params = new URLSearchParams({

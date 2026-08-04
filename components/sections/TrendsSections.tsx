@@ -25,10 +25,14 @@ import { ShowRateDonut } from "@/components/charts/ShowRateDonut";
  */
 export async function TrendsSections({
   trendsPromise,
-  weeks,
+  rangeHeading,
+  rangePhrase,
 }: {
   trendsPromise: Promise<WeeklyDataPoint[]>;
-  weeks: number;
+  /** e.g. "Last 4 Weeks" or "Since Apr 4, 2026" (lifetime view) — see app/dashboard/[clientSlug]/page.tsx. */
+  rangeHeading: string;
+  /** Lowercase phrase form of rangeHeading, e.g. "the last 4 weeks" or "since Apr 4, 2026". */
+  rangePhrase: string;
 }) {
   const trends = await trendsPromise;
 
@@ -36,7 +40,7 @@ export async function TrendsSections({
     <div className="space-y-8">
       <div>
         <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
-          Weekly Detail — Last {weeks} Weeks
+          Weekly Detail — {rangeHeading}
         </h2>
         <WeeklyTable data={trends} />
       </div>
@@ -100,7 +104,7 @@ export async function TrendsSections({
         </ChartCard>
         <ChartCard
           title="Appointments: Showed vs No-show"
-          subtitle={`Total across the last ${weeks} weeks`}
+          subtitle={`Total across ${rangePhrase}`}
           accent="blue"
         >
           <ShowRateDonut data={trends} />
