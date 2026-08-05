@@ -55,7 +55,11 @@ export async function SnapshotSections({
         />
       </div>
 
-      <MetricGroup title="Meta Ads" accent="blue">
+      <MetricGroup
+        title="Meta Ads"
+        accent="blue"
+        caption="Leads = new people who came in during this period only."
+      >
         <MetricCard accent="blue" label="CPC" value={formatCurrency(report.meta.cpc)} />
         <MetricCard accent="blue" label="CTR" value={formatPercent(report.meta.ctr)} />
         <MetricCard accent="blue" label="Leads" value={formatNumber(report.meta.leads)} />
@@ -89,7 +93,11 @@ export async function SnapshotSections({
         />
       </MetricGroup>
 
-      <MetricGroup title="Sales" accent="blue">
+      <MetricGroup
+        title="Sales"
+        accent="blue"
+        caption="Quotes sent/Closed count whatever happened this period, even for leads from an earlier one — so these can be higher than Leads above."
+      >
         <MetricCard
           accent="blue"
           label="Show rate"

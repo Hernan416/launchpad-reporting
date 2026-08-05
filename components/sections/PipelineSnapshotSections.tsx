@@ -31,7 +31,11 @@ export async function PipelineSnapshotSections({
         </div>
       )}
 
-      <MetricGroup title="Leads" accent="blue">
+      <MetricGroup
+        title="Leads"
+        accent="blue"
+        caption="New leads that came in during this period only."
+      >
         <MetricCard accent="blue" label="Total Leads" value={formatNumber(report.totalLeads)} />
         {report.leadsBySource.map((source) => (
           <MetricCard
@@ -43,7 +47,11 @@ export async function PipelineSnapshotSections({
         ))}
       </MetricGroup>
 
-      <MetricGroup title="Quotes" accent="gold">
+      <MetricGroup
+        title="Quotes"
+        accent="gold"
+        caption="Yes/No/Reviewing reflect decisions made this period, even for leads from an earlier one — so these can be higher than Total Leads above."
+      >
         <MetricCard accent="gold" label="Quotes Sent" value={formatNumber(report.quotesSent)} />
         <MetricCard
           accent="gold"
@@ -62,7 +70,11 @@ export async function PipelineSnapshotSections({
         />
       </MetricGroup>
 
-      <MetricGroup title="Appointments" accent="blue">
+      <MetricGroup
+        title="Appointments"
+        accent="blue"
+        caption="Reflects status changes made this period, even for leads booked in an earlier one."
+      >
         <MetricCard accent="blue" label="Booked" value={formatNumber(report.appointmentsBooked)} />
         <MetricCard
           accent="blue"

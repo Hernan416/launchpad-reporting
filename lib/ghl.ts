@@ -71,8 +71,9 @@ export interface GhlAppointmentStats {
 }
 
 export interface GhlSalesStats {
-  /** Every opportunity created in ghlPipelineName during the period — the deduplicated lead count (GHL won't create a second contact/opportunity for a repeat form submission), used instead of Meta's own raw "lead" action count which counts every submission, duplicates included. */
+  /** Every opportunity CREATED in ghlPipelineName during the period — the deduplicated lead count (GHL won't create a second contact/opportunity for a repeat form submission), used instead of Meta's own raw "lead" action count which counts every submission, duplicates included. Independent of quotesSent/closed below — see isWithinRange in getSalesStats. */
   leads: number;
+  /** Opportunities that REACHED that stage during the period (lastStageChangeAt), regardless of when they were created — so this can include (and exceed) leads from an earlier period who converted just now. */
   quotesSent: number;
   quotesSentRevenue: number;
   closed: number;
@@ -158,6 +159,45 @@ function clientSinceMillis(client: ClientConfig): number {
   return new Date(`${client.clientSince}T00:00:00Z`).getTime();
 }
 
+/** Fallback lower bound for a client with no clientSince — wide enough to predate any real client's GHL history. */
+const OPPORTUNITY_LOOKBACK_FLOOR = new Date("2020-01-01T00:00:00Z").getTime();
+
+/**
+ * How far back to fetch a pipeline's opportunities so that ones CREATED
+ * before the requested period but UPDATED (stage-changed) during it aren't
+ * missed. GHL's /opportunities/search date filter is createdAt-only (see
+ * isWithinRange below) — fetching from this floor instead of the period's
+ * own startTime, then filtering client-side by whichever date field a given
+ * metric actually cares about, is what makes the createdAt/updatedAt split
+ * possible at all.
+ */
+function pipelineFetchFloor(client: ClientConfig): number {
+  return client.clientSince
+    ? new Date(`${client.clientSince}T00:00:00Z`).getTime()
+    : OPPORTUNITY_LOOKBACK_FLOOR;
+}
+
+/**
+ * True if `dateStr` falls in [startTime, endTime). Used to apply the
+ * createdAt vs. lastStageChangeAt split: "leads" only count opportunities
+ * CREATED in the period, while quotesSent/closed/shows only count ones
+ * whose CURRENT stage was reached (lastStageChangeAt) during the period —
+ * regardless of when they were created. A lead created last month who
+ * closes this month shows up in this month's Closed count but NOT in this
+ * month's Leads count (and didn't count as Closed last month either, since
+ * it hadn't closed yet) — so Closed/Quotes Sent are not a subset of Leads
+ * and can legitimately exceed it. That's intentional, not a bug: Leads
+ * answers "how many new people came in this period," Closed/Quotes Sent
+ * answer "how much sales activity happened this period," and a sales cycle
+ * that's longer than the reporting window means those two questions don't
+ * have to agree.
+ */
+function isWithinRange(dateStr: string | undefined, startTime: number, endTime: number): boolean {
+  if (!dateStr) return false;
+  const t = new Date(dateStr).getTime();
+  return t >= startTime && t < endTime;
+}
+
 function requireCalendarIds(client: ClientConfig): string[] {
   if (!client.ghlCalendarIds || client.ghlCalendarIds.length === 0) {
     throw new Error(
@@ -218,15 +258,17 @@ function dedupeEventsByContact(events: CalendarEvent[]): CalendarEvent[] {
 
 /**
  * Fetches the client's sales pipeline (ghlPipelineName, defaulting to the
- * first pipeline if unset/not found) and every opportunity created in it
- * within the given range, alongside a stageId -> stageName map. Shared by
- * getAppointmentStats (pipeline-sourced shows), getSalesStats, and their
- * weekly counterparts, so callers filter this same fetch by stage-name set
- * instead of each issuing their own per-stage request.
+ * first pipeline if unset/not found) and every opportunity created from
+ * pipelineFetchFloor(client) through endTime, alongside a stageId ->
+ * stageName map. That floor is deliberately earlier than any period's own
+ * startTime — see pipelineFetchFloor and isWithinRange — so callers can
+ * apply their own createdAt vs. lastStageChangeAt filtering afterward
+ * instead of losing older-but-recently-updated opportunities to the fetch
+ * itself. Shared by getAppointmentStats (pipeline-sourced shows),
+ * getSalesStats, and their weekly counterparts.
  */
 async function getSalesPipelineOpportunities(
   client: ClientConfig,
-  startTime: number,
   endTime: number
 ): Promise<{ opportunities: Opportunity[]; stageNameById: Map<string, string> }> {
   const data = await ghlFetch<PipelinesResponse>(client, "/opportunities/pipelines", {
@@ -239,7 +281,12 @@ async function getSalesPipelineOpportunities(
     throw new Error(`${client.slug} has no GHL pipelines configured.`);
   }
 
-  const opportunities = await fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime);
+  const opportunities = await fetchAllPipelineOpportunities(
+    client,
+    pipeline.id,
+    pipelineFetchFloor(client),
+    endTime
+  );
   const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
   return { opportunities, stageNameById };
 }
@@ -266,12 +313,11 @@ export async function getAppointmentStats(
   // appointmentStatus in sync with reality — their "Pipeline Movements"
   // workflows are the one thing that does, so shows come from there instead.
   if (client.ghlShowStageNames && client.ghlShowStageNames.length > 0) {
-    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
-      client,
-      startTime,
-      endTime
-    );
-    const shows = filterByStageNames(opportunities, stageNameById, client.ghlShowStageNames).length;
+    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(client, endTime);
+    // Reached a show-stage DURING the period, regardless of when the
+    // opportunity itself was created — see isWithinRange.
+    const updated = opportunities.filter((o) => isWithinRange(o.lastStageChangeAt, startTime, endTime));
+    const shows = filterByStageNames(updated, stageNameById, client.ghlShowStageNames).length;
     return { appointments, shows };
   }
 
@@ -304,11 +350,7 @@ export async function getWeeklyAppointmentStats(
   }
 
   if (client.ghlShowStageNames && client.ghlShowStageNames.length > 0) {
-    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
-      client,
-      startTime,
-      endTime
-    );
+    const { opportunities, stageNameById } = await getSalesPipelineOpportunities(client, endTime);
     const showOpps = filterByStageNames(opportunities, stageNameById, client.ghlShowStageNames);
     for (const opp of showOpps) {
       const idx = opp.lastStageChangeAt
@@ -343,20 +385,30 @@ export async function getSalesStats(
   period: Period
 ): Promise<GhlSalesStats> {
   const { startTime, endTime } = periodToRange(period, client);
-  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
-    client,
-    startTime,
-    endTime
+  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(client, endTime);
+
+  // Two independent filters over the same fetch (see isWithinRange): leads
+  // is who's NEW this period (createdAt), quotesSent/closed is what
+  // HAPPENED this period (lastStageChangeAt) — an opportunity created last
+  // period that closes this period counts toward this period's Closed but
+  // not its Leads, so Closed/Quotes Sent are not bounded by Leads.
+  const leadOpportunities = opportunities.filter((o) => isWithinRange(o.createdAt, startTime, endTime));
+  const updatedOpportunities = opportunities.filter((o) =>
+    isWithinRange(o.lastStageChangeAt, startTime, endTime)
   );
 
   const quoteSentNames = client.ghlQuoteSentStageNames ?? DEFAULT_QUOTE_SENT_STAGES;
   const closedNames = client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES;
 
-  const quoteAgg = aggregateOpportunities(filterByStageNames(opportunities, stageNameById, quoteSentNames));
-  const closedAgg = aggregateOpportunities(filterByStageNames(opportunities, stageNameById, closedNames));
+  const quoteAgg = aggregateOpportunities(
+    filterByStageNames(updatedOpportunities, stageNameById, quoteSentNames)
+  );
+  const closedAgg = aggregateOpportunities(
+    filterByStageNames(updatedOpportunities, stageNameById, closedNames)
+  );
 
   return {
-    leads: opportunities.length,
+    leads: leadOpportunities.length,
     quotesSent: quoteAgg.count,
     quotesSentRevenue: quoteAgg.revenue,
     closed: closedAgg.count,
@@ -368,12 +420,8 @@ export async function getWeeklySalesStats(
   client: ClientConfig,
   buckets: WeekBucket[]
 ): Promise<WeeklySalesStats[]> {
-  const { startTime, endTime } = rangeFromBuckets(buckets);
-  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(
-    client,
-    startTime,
-    endTime
-  );
+  const { endTime } = rangeFromBuckets(buckets);
+  const { opportunities, stageNameById } = await getSalesPipelineOpportunities(client, endTime);
 
   const quoteSentNames = new Set(client.ghlQuoteSentStageNames ?? DEFAULT_QUOTE_SENT_STAGES);
   const closedNames = new Set(client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES);
@@ -563,22 +611,45 @@ export async function getPipelineFunnelStats(
     getPipelineByName(client, config.showsPipelineName),
   ]);
   const { startTime, endTime } = periodToRange(period, client);
+  const floor = pipelineFetchFloor(client);
 
-  const [quoteOpportunities, leadOpportunities] = await Promise.all([
-    fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
-    fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime),
+  // Fetched from `floor` (well before the period), not `startTime` — see
+  // pipelineFetchFloor — so an opportunity created earlier that only
+  // reaches a quote/appointment stage during this period isn't missed.
+  const [quoteOpportunitiesAll, leadOpportunitiesAll] = await Promise.all([
+    fetchAllPipelineOpportunities(client, pipeline.id, floor, endTime),
+    fetchAllPipelineOpportunities(client, showsPipeline.id, floor, endTime),
   ]);
+
+  // "Leads" and "Quotes Sent" are createdAt events (when did this specific
+  // funnel entry start) — scoped to opportunities actually created in the
+  // period. Quote-stage and appointment-stage counts are lastStageChangeAt
+  // events (what happened this period) — scoped independently, so a lead
+  // created last period who gets a Yes/No this period counts here even
+  // though it isn't one of this period's Leads (see isWithinRange).
+  const quoteOpportunities = quoteOpportunitiesAll.filter((o) =>
+    isWithinRange(o.createdAt, startTime, endTime)
+  );
+  const leadOpportunities = leadOpportunitiesAll.filter((o) =>
+    isWithinRange(o.createdAt, startTime, endTime)
+  );
+  const quoteOpportunitiesUpdated = quoteOpportunitiesAll.filter((o) =>
+    isWithinRange(o.lastStageChangeAt, startTime, endTime)
+  );
+  const leadOpportunitiesUpdated = leadOpportunitiesAll.filter((o) =>
+    isWithinRange(o.lastStageChangeAt, startTime, endTime)
+  );
 
   const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
   const inQuoteStages = (names: string[]) => {
     const nameSet = new Set(names);
-    return quoteOpportunities.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
+    return quoteOpportunitiesUpdated.filter((o) => nameSet.has(stageNameById.get(o.pipelineStageId) ?? ""));
   };
 
   const showsStageNameById = new Map(showsPipeline.stages.map((s) => [s.id, s.name]));
   const inShowsStages = (names: string[]) => {
     const nameSet = new Set(names);
-    return leadOpportunities.filter((o) => nameSet.has(showsStageNameById.get(o.pipelineStageId) ?? ""));
+    return leadOpportunitiesUpdated.filter((o) => nameSet.has(showsStageNameById.get(o.pipelineStageId) ?? ""));
   };
 
   const allLeadOpportunities = [...leadOpportunities, ...quoteOpportunities];
@@ -644,11 +715,15 @@ export async function getWeeklyPipelineFunnelStats(
     getPipelineByName(client, config.pipelineName),
     getPipelineByName(client, config.showsPipelineName),
   ]);
-  const { startTime, endTime } = rangeFromBuckets(buckets);
+  const { endTime } = rangeFromBuckets(buckets);
+  const floor = pipelineFetchFloor(client);
 
+  // Fetched from `floor`, not the buckets' own start — see
+  // pipelineFetchFloor — so an opportunity created before the visible
+  // range but updated within it still lands in the right week below.
   const [quoteOpportunities, leadOpportunities] = await Promise.all([
-    fetchAllPipelineOpportunities(client, pipeline.id, startTime, endTime),
-    fetchAllPipelineOpportunities(client, showsPipeline.id, startTime, endTime),
+    fetchAllPipelineOpportunities(client, pipeline.id, floor, endTime),
+    fetchAllPipelineOpportunities(client, showsPipeline.id, floor, endTime),
   ]);
 
   const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
@@ -661,8 +736,19 @@ export async function getWeeklyPipelineFunnelStats(
   const lostSet = new Set(config.lostStageNames);
 
   const allLeadOpportunities = [...leadOpportunities, ...quoteOpportunities];
+  // Source lookups only matter for opportunities that'll actually land in a
+  // visible week (see the createdAt bucketing below) — restrict to those so
+  // widening the fetch above doesn't turn into extra getContactSource calls
+  // for opportunities from outside the buckets' range entirely.
+  const inVisibleRange = (o: Opportunity) =>
+    o.createdAt !== undefined && bucketIndexForDate(new Date(o.createdAt), buckets) !== null;
   const uniqueContactIds = [
-    ...new Set(allLeadOpportunities.map((o) => o.contactId).filter((id): id is string => !!id)),
+    ...new Set(
+      allLeadOpportunities
+        .filter(inVisibleRange)
+        .map((o) => o.contactId)
+        .filter((id): id is string => !!id)
+    ),
   ];
   const sources = await Promise.all(uniqueContactIds.map((id) => getContactSource(client, id)));
   const sourceByContactId = new Map(uniqueContactIds.map((id, i) => [id, sources[i]]));
