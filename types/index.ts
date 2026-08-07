@@ -68,7 +68,8 @@ export interface ClientConfig {
   clientSince?: string;
 }
 
-export type Period = "7d" | "30d" | "lifetime";
+/** "month" is a real calendar month (the 1st through the 30th/31st of whichever month is current) — not a rolling 30 days. Changed 2026-08-05 per the user, so reports line up with an actual calendar/invoicing month. */
+export type Period = "7d" | "month" | "lifetime";
 
 export interface MetaMetrics {
   spend: number;

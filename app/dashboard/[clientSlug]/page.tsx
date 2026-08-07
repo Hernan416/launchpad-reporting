@@ -61,7 +61,7 @@ export default async function ClientDashboardPage({
   // configured (see ClientConfig.clientSince) — otherwise fall back to 7d
   // rather than let a stale/guessed URL hit the "missing clientSince" error.
   const requestedPeriod: Period =
-    periodParam === "30d" ? "30d" : periodParam === "lifetime" ? "lifetime" : "7d";
+    periodParam === "month" ? "month" : periodParam === "lifetime" ? "lifetime" : "7d";
   const period: Period = requestedPeriod === "lifetime" && !client.clientSince ? "7d" : requestedPeriod;
 
   // clientSince is a date-only string, parsed as UTC midnight — format it in
@@ -75,12 +75,26 @@ export default async function ClientDashboardPage({
         timeZone: "UTC",
       })
     : undefined;
+  // "month" is the current calendar month (see lib/period.ts) — labeled by
+  // its actual name/year (e.g. "August 2026"), formatted in UTC to match
+  // the month boundary the data itself uses.
+  const monthLabel = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
   const rangeHeading =
-    period === "lifetime" && clientSinceLabel ? `Since ${clientSinceLabel}` : `Last ${TREND_WEEKS} Weeks`;
+    period === "lifetime" && clientSinceLabel
+      ? `Since ${clientSinceLabel}`
+      : period === "month"
+        ? monthLabel
+        : `Last ${TREND_WEEKS} Weeks`;
   const rangePhrase =
     period === "lifetime" && clientSinceLabel
       ? `since ${clientSinceLabel}`
-      : `the last ${TREND_WEEKS} weeks`;
+      : period === "month"
+        ? monthLabel
+        : `the last ${TREND_WEEKS} weeks`;
 
   const topNav =
     session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;

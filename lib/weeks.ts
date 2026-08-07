@@ -30,16 +30,21 @@ export function getWeekBuckets(weeks: number): WeekBucket[] {
 }
 
 /**
- * Weekly buckets from `since` (a client's clientSince date, for the
- * lifetime view) forward through today — as many weeks as it takes to
- * reach now, rather than a fixed trailing count. `since` is parsed as UTC
- * midnight from a date-only string (see ClientConfig.clientSince), so
+ * Weekly buckets from `since` forward through `until` (defaults to now) —
+ * as many weeks as it takes to reach `until`, rather than a fixed trailing
+ * count. Used for the lifetime view (since = a client's clientSince date,
+ * until = now) and the month view (since = the 1st of the month, until =
+ * the 1st of next month) — the last bucket is clipped to `until` so it
+ * never overshoots. Both `since` and `until` are expected to be UTC
+ * midnight instants (see ClientConfig.clientSince / lib/period.ts), so
  * labels are formatted in UTC too — otherwise a server running west of UTC
  * (e.g. America/Caracas) renders "2026-04-12" as "Apr 11".
  */
-export function getWeekBucketsFrom(since: Date): WeekBucket[] {
-  const weeks = Math.max(1, Math.ceil((Date.now() - since.getTime()) / (7 * 24 * 60 * 60 * 1000)));
-  return buildBuckets(since, weeks, "UTC");
+export function getWeekBucketsFrom(since: Date, until: Date = new Date()): WeekBucket[] {
+  const weeks = Math.max(1, Math.ceil((until.getTime() - since.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+  return buildBuckets(since, weeks, "UTC").map((bucket) =>
+    bucket.end.getTime() > until.getTime() ? { ...bucket, end: until } : bucket
+  );
 }
 
 /** Returns the bucket index for a date, or null if it falls outside every bucket. */

@@ -1,12 +1,8 @@
 import type { Period } from "@/types";
 import type { WeekBucket } from "@/lib/weeks";
+import { currentMonthDateStringsUTC } from "@/lib/period";
 
 const GRAPH_API_VERSION = "v21.0";
-
-const DATE_PRESET: Record<"7d" | "30d", string> = {
-  "7d": "last_7d",
-  "30d": "last_30d",
-};
 
 interface MetaAction {
   action_type: string;
@@ -119,6 +115,10 @@ async function fetchInsights(
  * `sinceDate` (ISO "YYYY-MM-DD") is required when period is "lifetime" —
  * Meta has no date_preset for "since this client started with us", so that
  * case uses an explicit time_range from sinceDate through today instead.
+ * "month" is a real calendar month (see lib/period.ts), also expressed as
+ * an explicit time_range rather than a rolling preset — Meta has no
+ * "this_month" equivalent we control the timezone of, and we want the
+ * exact same UTC month boundary GHL uses so the two sources agree.
  */
 export async function getMetaInsights(
   adAccountId: string,
@@ -139,8 +139,10 @@ export async function getMetaInsights(
       "time_range",
       JSON.stringify({ since: sinceDate, until: new Date().toISOString().slice(0, 10) })
     );
+  } else if (period === "month") {
+    params.set("time_range", JSON.stringify(currentMonthDateStringsUTC()));
   } else {
-    params.set("date_preset", DATE_PRESET[period]);
+    params.set("date_preset", "last_7d");
   }
 
   const data = await fetchInsights(adAccountId, params);

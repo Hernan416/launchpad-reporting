@@ -13,7 +13,7 @@ export function PeriodToggle({
 }) {
   const options: { value: Period; label: string }[] = [
     { value: "7d", label: "Last 7 days" },
-    { value: "30d", label: "Last 30 days" },
+    { value: "month", label: "This Month" },
     ...(showLifetime ? [{ value: "lifetime" as const, label: "Lifetime" }] : []),
   ];
 

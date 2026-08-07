@@ -1,6 +1,7 @@
 import type { ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
 import { bucketIndexForDate, rangeFromBuckets } from "@/lib/weeks";
 import type { WeekBucket } from "@/lib/weeks";
+import { periodToRange } from "@/lib/period";
 
 const API_BASE = "https://services.leadconnectorhq.com";
 const API_VERSION = "2021-07-28";
@@ -139,24 +140,6 @@ async function ghlFetch<T>(
   }
 
   return (await res.json()) as T;
-}
-
-function periodToRange(period: Period, client: ClientConfig): { startTime: number; endTime: number } {
-  const endTime = Date.now();
-  if (period === "lifetime") {
-    return { startTime: clientSinceMillis(client), endTime };
-  }
-  const days = period === "30d" ? 30 : 7;
-  return { startTime: endTime - days * 24 * 60 * 60 * 1000, endTime };
-}
-
-function clientSinceMillis(client: ClientConfig): number {
-  if (!client.clientSince) {
-    throw new Error(
-      `${client.slug} is missing clientSince in config/clients.ts — required for the lifetime view.`
-    );
-  }
-  return new Date(`${client.clientSince}T00:00:00Z`).getTime();
 }
 
 /** Fallback lower bound for a client with no clientSince — wide enough to predate any real client's GHL history. */

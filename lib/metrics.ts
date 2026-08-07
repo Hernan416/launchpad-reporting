@@ -18,6 +18,7 @@ import {
 } from "@/lib/ghl";
 import { getWeekBuckets, getWeekBucketsFrom } from "@/lib/weeks";
 import type { WeekBucket } from "@/lib/weeks";
+import { currentMonthRangeUTC } from "@/lib/period";
 
 function safeDivide(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0;
@@ -25,8 +26,9 @@ function safeDivide(numerator: number, denominator: number): number {
 
 /**
  * Resolves the weekly-trend buckets for a period: the usual trailing
- * `weeks` weeks for "7d"/"30d", or every week since the client's
- * clientSince date for "lifetime" (see ClientConfig.clientSince).
+ * `weeks` weeks for "7d", every week of the current calendar month for
+ * "month" (clipped to the month's actual last day, see getWeekBucketsFrom),
+ * or every week since the client's clientSince date for "lifetime".
  */
 function resolveTrendBuckets(period: Period, weeks: number, clientSince?: string): WeekBucket[] {
   if (period === "lifetime") {
@@ -34,6 +36,10 @@ function resolveTrendBuckets(period: Period, weeks: number, clientSince?: string
       throw new Error("resolveTrendBuckets: the lifetime period requires clientSince.");
     }
     return getWeekBucketsFrom(new Date(`${clientSince}T00:00:00Z`));
+  }
+  if (period === "month") {
+    const { startTime, endTime } = currentMonthRangeUTC();
+    return getWeekBucketsFrom(new Date(startTime), new Date(endTime));
   }
   return getWeekBuckets(weeks);
 }

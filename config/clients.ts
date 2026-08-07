@@ -165,8 +165,10 @@ export const clients: ClientConfig[] = [
     slug: "jj-roofing",
     name: "JJ Roofing",
     metaAdAccountId: "act_1757690398122189",
-    // Client's own start date with us, per the user 2026-08-05 — anchors the Lifetime period.
-    clientSince: "2026-04-12",
+    // Client's own start date with us, per the user 2026-08-05 (updated same
+    // day to match the Meta ad account's actual creation date) — anchors the
+    // Lifetime period.
+    clientSince: "2025-03-01",
     ghlLocationId: "8ZAnZs0waICI9kZ8hE23",
     // Roof Estimates (in-person), MANUAL BOOKING - Roof Estimates (in-person)
     ghlCalendarIds: ["6DDI0zvqHt7fsZny08vB", "yh0U7Sv8J2J6dGfvRiqE"],
