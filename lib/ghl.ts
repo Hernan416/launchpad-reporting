@@ -53,9 +53,13 @@ interface PipelinesResponse {
 }
 
 interface Opportunity {
+  id: string;
   pipelineStageId: string;
   monetaryValue?: number;
   lastStageChangeAt?: string;
+  /** When GHL's own opportunity status (open/won/lost/abandoned) last changed — distinct from lastStageChangeAt, since marking an opportunity "won" doesn't require moving its pipeline card. See isClosedInRange. */
+  lastStatusChangeAt?: string;
+  status?: string;
   createdAt?: string;
   source?: string;
   contactId?: string;
@@ -179,6 +183,48 @@ function isWithinRange(dateStr: string | undefined, startTime: number, endTime: 
   if (!dateStr) return false;
   const t = new Date(dateStr).getTime();
   return t >= startTime && t < endTime;
+}
+
+/**
+ * An opportunity counts as "closed" in [startTime, endTime) two ways,
+ * stage-name match taking priority so a match on both isn't double-dated:
+ * (1) its CURRENT stage is one of closedStageNames and it reached that
+ * stage in the window (lastStageChangeAt), or (2) GHL's own opportunity
+ * status is "won" and it became won in the window (lastStatusChangeAt).
+ * (2) exists because a rep can mark a deal "Won" without ever dragging its
+ * pipeline card to a closed-looking stage — confirmed on real One Day
+ * Roofing data 2026-08-17: two deals sat at "Appt Confirmed" with
+ * status "won", which stage-name matching alone silently missed entirely.
+ */
+function isClosedInRange(
+  opp: Opportunity,
+  stageNameById: Map<string, string>,
+  closedStageNames: Set<string>,
+  startTime: number,
+  endTime: number
+): boolean {
+  const byStage =
+    closedStageNames.has(stageNameById.get(opp.pipelineStageId) ?? "") &&
+    isWithinRange(opp.lastStageChangeAt, startTime, endTime);
+  if (byStage) return true;
+  return opp.status === "won" && isWithinRange(opp.lastStatusChangeAt, startTime, endTime);
+}
+
+/** Weekly-bucket version of isClosedInRange — same two-way stage/won-status logic, but returns which bucket the closed event lands in (by lastStageChangeAt or lastStatusChangeAt respectively) instead of a plain boolean. */
+function closedBucketIndex(
+  opp: Opportunity,
+  stageNameById: Map<string, string>,
+  closedStageNames: Set<string>,
+  buckets: WeekBucket[]
+): number | null {
+  const byStage = closedStageNames.has(stageNameById.get(opp.pipelineStageId) ?? "");
+  if (byStage && opp.lastStageChangeAt) {
+    return bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets);
+  }
+  if (opp.status === "won" && opp.lastStatusChangeAt) {
+    return bucketIndexForDate(new Date(opp.lastStatusChangeAt), buckets);
+  }
+  return null;
 }
 
 function requireCalendarIds(client: ClientConfig): string[] {
@@ -381,14 +427,18 @@ export async function getSalesStats(
   );
 
   const quoteSentNames = client.ghlQuoteSentStageNames ?? DEFAULT_QUOTE_SENT_STAGES;
-  const closedNames = client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES;
+  const closedNames = new Set(client.ghlClosedStageNames ?? DEFAULT_CLOSED_STAGES);
 
   const quoteAgg = aggregateOpportunities(
     filterByStageNames(updatedOpportunities, stageNameById, quoteSentNames)
   );
-  const closedAgg = aggregateOpportunities(
-    filterByStageNames(updatedOpportunities, stageNameById, closedNames)
+  // Not just updatedOpportunities — a won-but-stuck-in-an-earlier-stage
+  // opportunity needs the full fetch, since its lastStageChangeAt may be
+  // outside the period even though it became "won" during it. See isClosedInRange.
+  const closedOpportunities = opportunities.filter((o) =>
+    isClosedInRange(o, stageNameById, closedNames, startTime, endTime)
   );
+  const closedAgg = aggregateOpportunities(closedOpportunities);
 
   return {
     leads: leadOpportunities.length,
@@ -422,18 +472,24 @@ export async function getWeeklySalesStats(
     const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
     if (createdIdx !== null) result[createdIdx].leads += 1;
 
-    const idx = opp.lastStageChangeAt
+    const stageIdx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
-    if (idx === null) continue;
-    const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
-    if (quoteSentNames.has(stageName)) {
-      result[idx].quotesSent += 1;
-      result[idx].quotesSentRevenue += opp.monetaryValue ?? 0;
+    if (stageIdx !== null) {
+      const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
+      if (quoteSentNames.has(stageName)) {
+        result[stageIdx].quotesSent += 1;
+        result[stageIdx].quotesSentRevenue += opp.monetaryValue ?? 0;
+      }
     }
-    if (closedNames.has(stageName)) {
-      result[idx].closed += 1;
-      result[idx].closedRevenue += opp.monetaryValue ?? 0;
+
+    // Independent of stageIdx above — a won-but-stuck-in-an-earlier-stage
+    // opportunity's closed week comes from lastStatusChangeAt instead. See
+    // closedBucketIndex.
+    const closedIdx = closedBucketIndex(opp, stageNameById, closedNames, buckets);
+    if (closedIdx !== null) {
+      result[closedIdx].closed += 1;
+      result[closedIdx].closedRevenue += opp.monetaryValue ?? 0;
     }
   }
 

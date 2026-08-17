@@ -103,6 +103,31 @@ export const clients: ClientConfig[] = [
     // event: only 6/13 actually said "showed" (rest were stale
     // confirmed/cancelled/invalid, one had no calendar event at all) — so
     // ghlShowStatus is deliberately left unset in favor of ghlShowStageNames.
+    //
+    // *** STALE as of 2026-08-17 — the client restructured this pipeline on
+    // 2026-08-09 (confirmed via the GHL API's pipeline dateUpdated) into a
+    // much longer, more granular stage list: New Application, Not Answering
+    // + Unconfirmed, Appointment Booked, Appt Confirmed, Appt Showed - Quote
+    // Requested, Waiting for Quote, Quote Delivered, Quote Closed, Deposit
+    // Collected, Job Completed, Appt Cancelled, Quote Rejected - Job Lost,
+    // No Show/Ghosting, Quote Rejected, Long Term Nurture, Dead Lead, Out of
+    // Territory. "Showed and Quoted" and "In AI Quote Followup Sequence"
+    // (below) no longer exist AT ALL, so ghlQuoteSentStageNames/
+    // ghlShowStageNames are currently matching nothing real — quotesSent and
+    // shows are silently wrong for this client until someone maps the new
+    // stage list the same way JJ Roofing's Home Services Pipeline was
+    // mapped (confirm with the user which of the new stages count as
+    // "quoted" vs. "showed" before touching this — it's a business call, not
+    // a mechanical rename like ghlClosedStageNames below was).
+    //
+    // ghlClosedStageNames WAS fixed 2026-08-17: "Closed" was renamed to
+    // "Quote Closed" in the restructure (confirmed via real opportunities —
+    // 3 won deals sitting exactly there). Also see isClosedInRange in
+    // lib/ghl.ts (added same day): 2 of this client's real won deals were
+    // found sitting in "Appt Confirmed" with status "won", never dragged to
+    // a closed-looking stage — GHL's own opportunity status field is now
+    // checked as a second, independent path to "closed" for every standard
+    // client, not just this one.
     ghlPipelineName: "Meta Ads",
     ghlQuoteSentStageNames: [
       "Showed and Quoted",
@@ -110,7 +135,7 @@ export const clients: ClientConfig[] = [
       "Closed",
       "Quote Rejected - Job Lost",
     ],
-    ghlClosedStageNames: ["Closed"],
+    ghlClosedStageNames: ["Quote Closed"],
     ghlShowStageNames: [
       "Showed and Quoted",
       "In AI Quote Followup Sequence",
@@ -172,8 +197,23 @@ export const clients: ClientConfig[] = [
     ghlLocationId: "8ZAnZs0waICI9kZ8hE23",
     // Roof Estimates (in-person), MANUAL BOOKING - Roof Estimates (in-person)
     ghlCalendarIds: ["6DDI0zvqHt7fsZny08vB", "yh0U7Sv8J2J6dGfvRiqE"],
-    // Real "Home Services Pipeline" mapped via direct GHL API calls 2026-07-28
-    // (single pipeline, single service line — roof replacement/estimates).
+    // Originally mapped as "Home Services Pipeline" via direct GHL API calls
+    // 2026-07-28 (single pipeline, single service line — roof
+    // replacement/estimates).
+    //
+    // *** RENAMED 2026-08-09 — the client restructured this pipeline the
+    // same day as One Day Roofing's "Meta Ads" pipeline (confirmed via the
+    // GHL API's pipeline dateUpdated, 26 seconds apart — a coordinated,
+    // account-wide change, not a coincidence). It's now also named "Meta
+    // Ads". ghlPipelineName below was stale until 2026-08-17 — it matched no
+    // real pipeline and was silently falling back to "the first pipeline in
+    // the list" (see getSalesPipelineOpportunities in lib/ghl.ts), which
+    // only worked because this location still has exactly one pipeline.
+    // Fixed to reference the real name directly instead of relying on that
+    // fallback. Unlike One Day Roofing's restructure, the stage NAMES here
+    // mostly survived intact — only "Appt Showed - not moving forward" (below)
+    // stopped existing (removed 2026-08-17, confirmed 0 opportunities sitting
+    // there).
     //
     // Confirmed with the user, same finding as Excel Roofing/US Home Pro: the
     // calendar's own appointmentStatus isn't kept in sync with reality (e.g. a
@@ -185,12 +225,15 @@ export const clients: ClientConfig[] = [
     // Unlike US Home Pro, showing up and getting a quote are two separate,
     // sequential stages here ("Appt Showed - Quote Requested" then later
     // "Quote Delivered"), so quotesSent and shows are different stage sets.
-    // "Long Term Nurture" and "Dead Lead" both happen after the appointment
-    // stage chronologically, but only Long Term Nurture implies they actually
-    // showed up (confirmed with the user) — Dead Lead does not count as shown.
     // "Deposit Collected"/"Job Completed" are post-sale fulfillment stages of
     // an already-won deal, so they count as Closed same as "Quote Closed".
-    ghlPipelineName: "Home Services Pipeline",
+    //
+    // "Long Term Nurture" was in ghlShowStageNames until 2026-08-17 (leads
+    // who showed up but weren't ready to buy yet were still counted as
+    // shown) — removed per the user that day: Long Term Nurture leads are no
+    // longer counted toward Show Rate at all now, regardless of whether they
+    // actually attended the appointment.
+    ghlPipelineName: "Meta Ads",
     ghlQuoteSentStageNames: [
       "Quote Delivered",
       "Quote Closed",
@@ -201,13 +244,11 @@ export const clients: ClientConfig[] = [
     ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
     ghlShowStageNames: [
       "Appt Showed - Quote Requested",
-      "Appt Showed - not moving forward",
       "Quote Delivered",
       "Quote Closed",
       "Deposit Collected",
       "Job Completed",
       "Quote Rejected",
-      "Long Term Nurture",
     ],
   },
 ];
