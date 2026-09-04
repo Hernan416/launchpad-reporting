@@ -1,11 +1,12 @@
 import Link from "next/link";
-import type { Period } from "@/types";
+import type { CustomRange, Period } from "@/types";
 
 export function PeriodToggle({
   slug,
   period,
   showLifetime = false,
   extraQuery = "",
+  customRange,
 }: {
   slug: string;
   period: Period;
@@ -13,11 +14,24 @@ export function PeriodToggle({
   showLifetime?: boolean;
   /** Extra query string to preserve across period changes, e.g. "&pipeline=combined" for the Launchpad dashboard's pipeline toggle. Must start with "&". */
   extraQuery?: string;
+  /** The currently-picked custom range, if any — reused as the Custom pill's own target so switching to another period and back to Custom doesn't lose the picked dates. Defaults to the trailing 30 days when never set. */
+  customRange?: CustomRange;
 }) {
-  const options: { value: Period; label: string }[] = [
-    { value: "7d", label: "Last 7 days" },
-    { value: "month", label: "This Month" },
-    ...(showLifetime ? [{ value: "lifetime" as const, label: "Lifetime" }] : []),
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultFrom = customRange?.from ?? new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultTo = customRange?.to ?? today;
+
+  const options: { value: Period; label: string; href: string }[] = [
+    { value: "7d", label: "Last 7 days", href: `/dashboard/${slug}?period=7d${extraQuery}` },
+    { value: "month", label: "This Month", href: `/dashboard/${slug}?period=month${extraQuery}` },
+    ...(showLifetime
+      ? [{ value: "lifetime" as const, label: "Lifetime", href: `/dashboard/${slug}?period=lifetime${extraQuery}` }]
+      : []),
+    {
+      value: "custom",
+      label: "Custom",
+      href: `/dashboard/${slug}?period=custom&from=${defaultFrom}&to=${defaultTo}${extraQuery}`,
+    },
   ];
 
   return (
@@ -27,7 +41,7 @@ export function PeriodToggle({
         return (
           <Link
             key={option.value}
-            href={`/dashboard/${slug}?period=${option.value}${extraQuery}`}
+            href={option.href}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
                 ? "bg-[#0067eb] text-white"

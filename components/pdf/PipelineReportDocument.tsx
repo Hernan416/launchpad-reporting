@@ -4,7 +4,8 @@ import { formatNumber, formatPercent } from "@/lib/format";
 import { groupWeeksByMonth, summarizePipelineMonth, type PipelineMonthTotals } from "@/lib/monthlyRollup";
 import { pdfStyles } from "./pdfStyles";
 
-function periodLabel(period: Period): string {
+function periodLabel(period: Period, customRangeLabel?: string): string {
+  if (period === "custom") return customRangeLabel ?? "Custom Range";
   if (period === "lifetime") return "Lifetime";
   if (period === "month") {
     return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -68,11 +69,13 @@ function WeeklyTableRow({ label, data, bold }: { label: string; data: PipelineMo
 export function PipelineReportDocument({
   clientName,
   period,
+  customRangeLabel,
   report,
   trends,
 }: {
   clientName: string;
   period: Period;
+  customRangeLabel?: string;
   report: PipelineFunnelReport;
   trends: WeeklyPipelineDataPoint[];
 }) {
@@ -84,12 +87,14 @@ export function PipelineReportDocument({
   });
 
   return (
-    <Document title={`${clientName} — ${periodLabel(period)} Report`}>
+    <Document title={`${clientName} — ${periodLabel(period, customRangeLabel)} Report`}>
       <Page size="A4" style={pdfStyles.page} wrap>
         <View style={pdfStyles.headerRow}>
           <View>
             <Text style={pdfStyles.clientName}>{clientName}</Text>
-            <Text style={pdfStyles.reportSubtitle}>Performance Report — {periodLabel(period)}</Text>
+            <Text style={pdfStyles.reportSubtitle}>
+              Performance Report — {periodLabel(period, customRangeLabel)}
+            </Text>
           </View>
           <Text style={pdfStyles.generatedAt}>Generated {generatedAt}</Text>
         </View>
@@ -152,7 +157,7 @@ export function PipelineReportDocument({
 
         {grandTotal && monthGroups.length > 1 && (
           <View wrap={false}>
-            <Text style={pdfStyles.monthHeading}>All-Time Total ({periodLabel(period)})</Text>
+            <Text style={pdfStyles.monthHeading}>All-Time Total ({periodLabel(period, customRangeLabel)})</Text>
             <View style={pdfStyles.table}>
               <WeeklyTableHeader />
               <WeeklyTableRow label="Grand Total" data={grandTotal} bold />

@@ -3,6 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { auth } from "@/lib/auth";
 import { getLaunchpadPipeline, launchpadCombinedSince } from "@/config/launchpad";
 import { getLaunchpadReport, getLaunchpadTrends } from "@/lib/metrics";
+import { parseCustomRange } from "@/lib/period";
 import type { Period } from "@/types";
 import { CallFunnelReportDocument } from "@/components/pdf/CallFunnelReportDocument";
 
@@ -31,21 +32,37 @@ export async function GET(request: NextRequest) {
       : "combined";
 
   const periodParam = request.nextUrl.searchParams.get("period");
-  const period: Period =
-    periodParam === "month" ? "month" : periodParam === "lifetime" ? "lifetime" : "7d";
+  const customRange =
+    periodParam === "custom"
+      ? parseCustomRange(request.nextUrl.searchParams.get("from"), request.nextUrl.searchParams.get("to"))
+      : undefined;
+  const requestedPeriod: Period =
+    periodParam === "custom"
+      ? "custom"
+      : periodParam === "month"
+        ? "month"
+        : periodParam === "lifetime"
+          ? "lifetime"
+          : "7d";
+  const period: Period = requestedPeriod === "custom" && !customRange ? "7d" : requestedPeriod;
 
   const view = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey);
   const sinceDate = view ? view.client.clientSince! : launchpadCombinedSince;
-  const sinceLabel = new Date(`${sinceDate}T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const formatDateLabel = (dateStr: string) =>
+    new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  const sinceLabel = formatDateLabel(sinceDate);
+  const customRangeLabel = customRange
+    ? `${formatDateLabel(customRange.from)} – ${formatDateLabel(customRange.to)}`
+    : undefined;
 
   const [report, trends] = await Promise.all([
-    getLaunchpadReport(pipelineKey, period),
-    getLaunchpadTrends(pipelineKey, period, TREND_WEEKS),
+    getLaunchpadReport(pipelineKey, period, customRange),
+    getLaunchpadTrends(pipelineKey, period, TREND_WEEKS, customRange),
   ]);
 
   const pdfBuffer = await renderToBuffer(
@@ -54,12 +71,16 @@ export async function GET(request: NextRequest) {
       entryLabel: view?.entryLabel,
       period,
       sinceLabel,
+      customRangeLabel,
       report,
       trends,
     })
   );
 
-  const fileName = `launchpad-ai-${pipelineKey}-${period}-report.pdf`;
+  const fileName =
+    period === "custom" && customRange
+      ? `launchpad-ai-${pipelineKey}-${customRange.from}-to-${customRange.to}-report.pdf`
+      : `launchpad-ai-${pipelineKey}-${period}-report.pdf`;
   return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",

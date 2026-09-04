@@ -1,6 +1,7 @@
 import type {
   CallFunnelReport,
   ClientReport,
+  CustomRange,
   LeadSourceCount,
   PipelineFunnelReport,
   Period,
@@ -34,9 +35,25 @@ function safeDivide(numerator: number, denominator: number): number {
  * Resolves the weekly-trend buckets for a period: the usual trailing
  * `weeks` weeks for "7d", every week of the current calendar month for
  * "month" (clipped to the month's actual last day, see getWeekBucketsFrom),
- * or every week since the client's clientSince date for "lifetime".
+ * every week since the client's clientSince date for "lifetime", or every
+ * week spanning the user-picked [from, to] for "custom" (to is inclusive,
+ * so +1 day for this app's half-open bucket convention — same adjustment as
+ * periodToRange).
  */
-function resolveTrendBuckets(period: Period, weeks: number, clientSince?: string): WeekBucket[] {
+function resolveTrendBuckets(
+  period: Period,
+  weeks: number,
+  clientSince?: string,
+  customRange?: CustomRange
+): WeekBucket[] {
+  if (period === "custom") {
+    if (!customRange) {
+      throw new Error("resolveTrendBuckets: the custom period requires a customRange.");
+    }
+    const since = new Date(`${customRange.from}T00:00:00Z`);
+    const until = new Date(new Date(`${customRange.to}T00:00:00Z`).getTime() + 24 * 60 * 60 * 1000);
+    return getWeekBucketsFrom(since, until);
+  }
   if (period === "lifetime") {
     if (!clientSince) {
       throw new Error("resolveTrendBuckets: the lifetime period requires clientSince.");
@@ -62,7 +79,8 @@ const EMPTY_META: MetaInsights = {
 
 export async function getClientReport(
   slug: string,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<ClientReport> {
   const client = getClientBySlug(slug);
   if (!client) {
@@ -78,10 +96,11 @@ export async function getClientReport(
       period,
       client.metaLeadActionType,
       client.metaLandingPageViewActionType,
-      client.clientSince
+      client.clientSince,
+      customRange
     ),
-    getAppointmentStats(client, period),
-    getSalesStats(client, period),
+    getAppointmentStats(client, period, customRange),
+    getSalesStats(client, period, customRange),
   ]);
 
   let meta = EMPTY_META;
@@ -176,14 +195,15 @@ export async function getClientReport(
 export async function getClientTrends(
   slug: string,
   period: Period,
-  weeks: number = 4
+  weeks: number = 4,
+  customRange?: CustomRange
 ): Promise<WeeklyDataPoint[]> {
   const client = getClientBySlug(slug);
   if (!client) {
     throw new Error(`Unknown client slug: ${slug}`);
   }
 
-  const buckets = resolveTrendBuckets(period, weeks, client.clientSince);
+  const buckets = resolveTrendBuckets(period, weeks, client.clientSince, customRange);
 
   const [metaResult, apptResult, salesResult] = await Promise.allSettled([
     getMetaWeeklyInsights(
@@ -261,7 +281,8 @@ export async function getClientTrends(
  */
 export async function getPipelineFunnelReport(
   slug: string,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<PipelineFunnelReport> {
   const client = getClientBySlug(slug);
   if (!client) {
@@ -286,7 +307,7 @@ export async function getPipelineFunnelReport(
     appointmentsLost: 0,
   };
   try {
-    funnel = await getPipelineFunnelStats(client, client.customFunnel, period);
+    funnel = await getPipelineFunnelStats(client, client.customFunnel, period, customRange);
   } catch (err) {
     console.error(`[metrics] GHL pipeline funnel fetch failed for ${slug}:`, err);
     warnings.push("Couldn't load the sales pipeline from GHL.");
@@ -319,7 +340,8 @@ export async function getPipelineFunnelReport(
 export async function getPipelineFunnelTrends(
   slug: string,
   period: Period,
-  weeks: number = 4
+  weeks: number = 4,
+  customRange?: CustomRange
 ): Promise<WeeklyPipelineDataPoint[]> {
   const client = getClientBySlug(slug);
   if (!client) {
@@ -329,7 +351,7 @@ export async function getPipelineFunnelTrends(
     throw new Error(`${slug} has no customFunnel config in config/clients.ts.`);
   }
 
-  const buckets = resolveTrendBuckets(period, weeks, client.clientSince);
+  const buckets = resolveTrendBuckets(period, weeks, client.clientSince, customRange);
   const empty = {
     totalLeads: 0,
     leadsBySource: [] as LeadSourceCount[],
@@ -420,12 +442,16 @@ function sumCallFunnelStats(a: CallFunnelStats, b: CallFunnelStats): CallFunnelS
  * all, and blending a call count across two differently-shaped funnels isn't
  * a meaningful number — see CallFunnelReport.meta.
  */
-export async function getLaunchpadReport(pipelineKey: string, period: Period): Promise<CallFunnelReport> {
+export async function getLaunchpadReport(
+  pipelineKey: string,
+  period: Period,
+  customRange?: CustomRange
+): Promise<CallFunnelReport> {
   const warnings: string[] = [];
 
   if (pipelineKey === "combined") {
     const results = await Promise.allSettled(
-      launchpadPipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period))
+      launchpadPipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period, customRange))
     );
     let totals = EMPTY_CALL_FUNNEL_STATS;
     results.forEach((r, i) => {
@@ -450,14 +476,15 @@ export async function getLaunchpadReport(pipelineKey: string, period: Period): P
   }
 
   const [statsResult, metaResult] = await Promise.allSettled([
-    getCallFunnelStats(view.client, view.funnel, period),
+    getCallFunnelStats(view.client, view.funnel, period, customRange),
     view.hasMetaAds
       ? getMetaInsights(
           view.client.metaAdAccountId,
           period,
           view.client.metaLeadActionType,
           view.client.metaLandingPageViewActionType,
-          view.client.clientSince
+          view.client.clientSince,
+          customRange
         )
       : Promise.resolve(null),
   ]);
@@ -508,10 +535,11 @@ export async function getLaunchpadReport(pipelineKey: string, period: Period): P
 export async function getLaunchpadTrends(
   pipelineKey: string,
   period: Period,
-  weeks: number = 4
+  weeks: number = 4,
+  customRange?: CustomRange
 ): Promise<WeeklyCallFunnelDataPoint[]> {
   if (pipelineKey === "combined") {
-    const buckets = resolveTrendBuckets(period, weeks, launchpadCombinedSince);
+    const buckets = resolveTrendBuckets(period, weeks, launchpadCombinedSince, customRange);
     const results = await Promise.allSettled(
       launchpadPipelines.map((p) => getWeeklyCallFunnelStats(p.client, p.funnel, buckets))
     );
@@ -550,7 +578,7 @@ export async function getLaunchpadTrends(
   if (!view) {
     throw new Error(`Unknown Launchpad pipeline key: ${pipelineKey}`);
   }
-  const buckets = resolveTrendBuckets(period, weeks, view.client.clientSince);
+  const buckets = resolveTrendBuckets(period, weeks, view.client.clientSince, customRange);
 
   let weekly: Awaited<ReturnType<typeof getWeeklyCallFunnelStats>> = [];
   try {

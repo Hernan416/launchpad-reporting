@@ -35,11 +35,12 @@ export async function TrendsSections({
   rangeHeading: string;
   /** Lowercase phrase form of rangeHeading, e.g. "the last 4 weeks" or "since Apr 4, 2026". */
   rangePhrase: string;
-  /** Lifetime spans many months with identical "Mon d" week labels across years (e.g. "Mar 7" in both 2025 and 2026) — split the table by month so rows stay unambiguous. 7d/month views are short enough to stay flat. */
+  /** Lifetime (and a long custom range) can span many months with identical "Mon d" week labels across years (e.g. "Mar 7" in both 2025 and 2026) — split the table by month so rows stay unambiguous. 7d/month views, and a custom range within a single month, are short enough to stay flat. */
   period: Period;
 }) {
   const trends = await trendsPromise;
-  const monthGroups = period === "lifetime" ? groupWeeksByMonth(trends) : null;
+  const monthGroups = period === "lifetime" || period === "custom" ? groupWeeksByMonth(trends) : null;
+  const showMonthGroups = !!monthGroups && monthGroups.length > 1;
 
   return (
     <div className="space-y-8">
@@ -47,9 +48,9 @@ export async function TrendsSections({
         <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
           Weekly Detail — {rangeHeading}
         </h2>
-        {monthGroups ? (
+        {showMonthGroups ? (
           <div className="space-y-6">
-            {monthGroups.map((group) => (
+            {monthGroups!.map((group) => (
               <div key={group.monthLabel}>
                 <h3 className="mb-2 text-sm font-semibold text-slate-600 dark:text-white/60">
                   {group.monthLabel}

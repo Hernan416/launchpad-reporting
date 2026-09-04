@@ -1,4 +1,11 @@
-import type { CallFunnelStageConfig, ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
+import type {
+  CallFunnelStageConfig,
+  ClientConfig,
+  CustomFunnelConfig,
+  CustomRange,
+  LeadSourceCount,
+  Period,
+} from "@/types";
 import { bucketIndexForDate, rangeFromBuckets } from "@/lib/weeks";
 import type { WeekBucket } from "@/lib/weeks";
 import { periodToRange } from "@/lib/period";
@@ -331,10 +338,11 @@ function filterByStageNames(
 
 export async function getAppointmentStats(
   client: ClientConfig,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<GhlAppointmentStats> {
   const calendarIds = requireCalendarIds(client);
-  const { startTime, endTime } = periodToRange(period, client);
+  const { startTime, endTime } = periodToRange(period, client, customRange);
   const events = await fetchCalendarEvents(client, calendarIds, startTime, endTime);
   const appointments = events.length;
 
@@ -411,9 +419,10 @@ function aggregateOpportunities(opportunities: Opportunity[]): StageAggregate {
 
 export async function getSalesStats(
   client: ClientConfig,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<GhlSalesStats> {
-  const { startTime, endTime } = periodToRange(period, client);
+  const { startTime, endTime } = periodToRange(period, client, customRange);
   const { opportunities, stageNameById } = await getSalesPipelineOpportunities(client, endTime);
 
   // Two independent filters over the same fetch (see isWithinRange): leads
@@ -643,13 +652,14 @@ async function getPipelineByName(client: ClientConfig, name: string) {
 export async function getPipelineFunnelStats(
   client: ClientConfig,
   config: CustomFunnelConfig,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<PipelineFunnelStats> {
   const [pipeline, showsPipeline] = await Promise.all([
     getPipelineByName(client, config.pipelineName),
     getPipelineByName(client, config.showsPipelineName),
   ]);
-  const { startTime, endTime } = periodToRange(period, client);
+  const { startTime, endTime } = periodToRange(period, client, customRange);
   const floor = pipelineFetchFloor(client);
 
   // Fetched from `floor` (well before the period), not `startTime` — see
@@ -744,10 +754,11 @@ export interface CallFunnelStats {
 export async function getCallFunnelStats(
   client: ClientConfig,
   funnel: CallFunnelStageConfig,
-  period: Period
+  period: Period,
+  customRange?: CustomRange
 ): Promise<CallFunnelStats> {
   const pipeline = await getPipelineByName(client, funnel.pipelineName);
-  const { startTime, endTime } = periodToRange(period, client);
+  const { startTime, endTime } = periodToRange(period, client, customRange);
   const floor = pipelineFetchFloor(client);
   const allOpportunities = await fetchAllPipelineOpportunities(client, pipeline.id, floor, endTime);
 

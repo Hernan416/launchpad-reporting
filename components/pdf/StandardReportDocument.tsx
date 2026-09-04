@@ -4,7 +4,8 @@ import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@
 import { groupWeeksByMonth, summarizeStandardMonth, type StandardMonthTotals } from "@/lib/monthlyRollup";
 import { pdfStyles } from "./pdfStyles";
 
-function periodLabel(period: Period, clientSinceLabel?: string): string {
+function periodLabel(period: Period, clientSinceLabel?: string, customRangeLabel?: string): string {
+  if (period === "custom") return customRangeLabel ?? "Custom Range";
   if (period === "lifetime") return clientSinceLabel ? `Lifetime (since ${clientSinceLabel})` : "Lifetime";
   if (period === "month") {
     return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -70,12 +71,14 @@ export function StandardReportDocument({
   clientName,
   period,
   clientSinceLabel,
+  customRangeLabel,
   report,
   trends,
 }: {
   clientName: string;
   period: Period;
   clientSinceLabel?: string;
+  customRangeLabel?: string;
   report: ClientReport;
   trends: WeeklyDataPoint[];
 }) {
@@ -87,12 +90,14 @@ export function StandardReportDocument({
   });
 
   return (
-    <Document title={`${clientName} — ${periodLabel(period, clientSinceLabel)} Report`}>
+    <Document title={`${clientName} — ${periodLabel(period, clientSinceLabel, customRangeLabel)} Report`}>
       <Page size="A4" style={pdfStyles.page} wrap>
         <View style={pdfStyles.headerRow}>
           <View>
             <Text style={pdfStyles.clientName}>{clientName}</Text>
-            <Text style={pdfStyles.reportSubtitle}>Performance Report — {periodLabel(period, clientSinceLabel)}</Text>
+            <Text style={pdfStyles.reportSubtitle}>
+              Performance Report — {periodLabel(period, clientSinceLabel, customRangeLabel)}
+            </Text>
           </View>
           <Text style={pdfStyles.generatedAt}>Generated {generatedAt}</Text>
         </View>
@@ -162,7 +167,9 @@ export function StandardReportDocument({
 
         {grandTotal && monthGroups.length > 1 && (
           <View wrap={false}>
-            <Text style={pdfStyles.monthHeading}>All-Time Total ({periodLabel(period, clientSinceLabel)})</Text>
+            <Text style={pdfStyles.monthHeading}>
+              All-Time Total ({periodLabel(period, clientSinceLabel, customRangeLabel)})
+            </Text>
             <View style={pdfStyles.table}>
               <WeeklyTableHeader />
               <WeeklyTableRow label="Grand Total" data={grandTotal} bold />

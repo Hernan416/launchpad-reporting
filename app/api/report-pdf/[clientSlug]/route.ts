@@ -8,6 +8,7 @@ import {
   getPipelineFunnelReport,
   getPipelineFunnelTrends,
 } from "@/lib/metrics";
+import { parseCustomRange } from "@/lib/period";
 import type { Period } from "@/types";
 import { StandardReportDocument } from "@/components/pdf/StandardReportDocument";
 import { PipelineReportDocument } from "@/components/pdf/PipelineReportDocument";
@@ -42,40 +43,61 @@ export async function GET(
   }
 
   const periodParam = request.nextUrl.searchParams.get("period");
+  const customRange =
+    periodParam === "custom"
+      ? parseCustomRange(request.nextUrl.searchParams.get("from"), request.nextUrl.searchParams.get("to"))
+      : undefined;
   const requestedPeriod: Period =
-    periodParam === "month" ? "month" : periodParam === "lifetime" ? "lifetime" : "7d";
-  const period: Period = requestedPeriod === "lifetime" && !client.clientSince ? "7d" : requestedPeriod;
+    periodParam === "custom"
+      ? "custom"
+      : periodParam === "month"
+        ? "month"
+        : periodParam === "lifetime"
+          ? "lifetime"
+          : "7d";
+  const period: Period =
+    requestedPeriod === "lifetime" && !client.clientSince
+      ? "7d"
+      : requestedPeriod === "custom" && !customRange
+        ? "7d"
+        : requestedPeriod;
 
-  const clientSinceLabel = client.clientSince
-    ? new Date(`${client.clientSince}T00:00:00Z`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      })
+  const formatDateLabel = (dateStr: string) =>
+    new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  const clientSinceLabel = client.clientSince ? formatDateLabel(client.clientSince) : undefined;
+  const customRangeLabel = customRange
+    ? `${formatDateLabel(customRange.from)} – ${formatDateLabel(customRange.to)}`
     : undefined;
 
   let pdfBuffer: Buffer;
 
   if (client.showMetaAds === false) {
     const [report, trends] = await Promise.all([
-      getPipelineFunnelReport(clientSlug, period),
-      getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS),
+      getPipelineFunnelReport(clientSlug, period, customRange),
+      getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS, customRange),
     ]);
     pdfBuffer = await renderToBuffer(
-      PipelineReportDocument({ clientName: client.name, period, report, trends })
+      PipelineReportDocument({ clientName: client.name, period, customRangeLabel, report, trends })
     );
   } else {
     const [report, trends] = await Promise.all([
-      getClientReport(clientSlug, period),
-      getClientTrends(clientSlug, period, TREND_WEEKS),
+      getClientReport(clientSlug, period, customRange),
+      getClientTrends(clientSlug, period, TREND_WEEKS, customRange),
     ]);
     pdfBuffer = await renderToBuffer(
-      StandardReportDocument({ clientName: client.name, period, clientSinceLabel, report, trends })
+      StandardReportDocument({ clientName: client.name, period, clientSinceLabel, customRangeLabel, report, trends })
     );
   }
 
-  const fileName = `${clientSlug}-${period}-report.pdf`;
+  const fileName =
+    period === "custom" && customRange
+      ? `${clientSlug}-${customRange.from}-to-${customRange.to}-report.pdf`
+      : `${clientSlug}-${period}-report.pdf`;
   return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",

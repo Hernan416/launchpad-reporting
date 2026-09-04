@@ -8,10 +8,12 @@ import {
   getPipelineFunnelReport,
   getPipelineFunnelTrends,
 } from "@/lib/metrics";
+import { parseCustomRange } from "@/lib/period";
 import type { Period } from "@/types";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ClientNav } from "@/components/ClientNav";
 import { PeriodToggle } from "@/components/PeriodToggle";
+import { CustomRangeForm } from "@/components/CustomRangeForm";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { SnapshotSections } from "@/components/sections/SnapshotSections";
 import { TrendsSections } from "@/components/sections/TrendsSections";
@@ -37,10 +39,10 @@ export default async function ClientDashboardPage({
   searchParams,
 }: {
   params: Promise<{ clientSlug: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const { clientSlug } = await params;
-  const { period: periodParam } = await searchParams;
+  const { period: periodParam, from: fromParam, to: toParam } = await searchParams;
 
   const session = await auth();
   if (!session?.user) {
@@ -59,22 +61,38 @@ export default async function ClientDashboardPage({
   }
 
   // "lifetime" is only a valid choice for clients with a clientSince date
-  // configured (see ClientConfig.clientSince) — otherwise fall back to 7d
-  // rather than let a stale/guessed URL hit the "missing clientSince" error.
+  // configured (see ClientConfig.clientSince), and "custom" only once it has
+  // a valid from/to — otherwise fall back to 7d rather than let a stale/
+  // guessed URL hit an error deeper in the fetch.
+  const customRange = periodParam === "custom" ? parseCustomRange(fromParam, toParam) : undefined;
   const requestedPeriod: Period =
-    periodParam === "month" ? "month" : periodParam === "lifetime" ? "lifetime" : "7d";
-  const period: Period = requestedPeriod === "lifetime" && !client.clientSince ? "7d" : requestedPeriod;
+    periodParam === "custom"
+      ? "custom"
+      : periodParam === "month"
+        ? "month"
+        : periodParam === "lifetime"
+          ? "lifetime"
+          : "7d";
+  const period: Period =
+    requestedPeriod === "lifetime" && !client.clientSince
+      ? "7d"
+      : requestedPeriod === "custom" && !customRange
+        ? "7d"
+        : requestedPeriod;
 
-  // clientSince is a date-only string, parsed as UTC midnight — format it in
-  // UTC too, or a server running west of UTC (e.g. America/Caracas) renders
-  // "2026-04-12" as "Apr 11".
-  const clientSinceLabel = client.clientSince
-    ? new Date(`${client.clientSince}T00:00:00Z`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      })
+  // clientSince/customRange are date-only strings, parsed as UTC midnight —
+  // format them in UTC too, or a server running west of UTC (e.g.
+  // America/Caracas) renders "2026-04-12" as "Apr 11".
+  const formatDateLabel = (dateStr: string) =>
+    new Date(`${dateStr}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  const clientSinceLabel = client.clientSince ? formatDateLabel(client.clientSince) : undefined;
+  const customRangeLabel = customRange
+    ? `${formatDateLabel(customRange.from)} – ${formatDateLabel(customRange.to)}`
     : undefined;
   // "month" is the current calendar month (see lib/period.ts) — labeled by
   // its actual name/year (e.g. "August 2026"), formatted in UTC to match
@@ -85,17 +103,24 @@ export default async function ClientDashboardPage({
     timeZone: "UTC",
   });
   const rangeHeading =
-    period === "lifetime" && clientSinceLabel
-      ? `Since ${clientSinceLabel}`
-      : period === "month"
-        ? monthLabel
-        : `Last ${TREND_WEEKS} Weeks`;
+    period === "custom" && customRangeLabel
+      ? customRangeLabel
+      : period === "lifetime" && clientSinceLabel
+        ? `Since ${clientSinceLabel}`
+        : period === "month"
+          ? monthLabel
+          : `Last ${TREND_WEEKS} Weeks`;
   const rangePhrase =
-    period === "lifetime" && clientSinceLabel
-      ? `since ${clientSinceLabel}`
-      : period === "month"
-        ? monthLabel
-        : `the last ${TREND_WEEKS} weeks`;
+    period === "custom" && customRangeLabel
+      ? customRangeLabel
+      : period === "lifetime" && clientSinceLabel
+        ? `since ${clientSinceLabel}`
+        : period === "month"
+          ? monthLabel
+          : `the last ${TREND_WEEKS} weeks`;
+  // Preserved across the period toggle and the PDF export link — see
+  // periodToRange/getMetaInsights, which need both when period is "custom".
+  const rangeQuery = period === "custom" && customRange ? `&from=${customRange.from}&to=${customRange.to}` : "";
 
   const topNav =
     session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;
@@ -103,14 +128,24 @@ export default async function ClientDashboardPage({
   // Clients with no Meta Ads involvement get a GHL-only dashboard built
   // around their actual sales pipeline instead of the standard Meta+GHL report.
   if (client.showMetaAds === false) {
-    const funnelReportPromise = getPipelineFunnelReport(clientSlug, period);
-    const funnelTrendsPromise = getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS);
+    const funnelReportPromise = getPipelineFunnelReport(clientSlug, period, customRange);
+    const funnelTrendsPromise = getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS, customRange);
 
     return (
       <DashboardShell title={client.name} topNav={topNav}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
-          <ExportPdfButton slug={clientSlug} period={period} />
+          <div className="flex flex-wrap items-center gap-3">
+            <PeriodToggle
+              slug={clientSlug}
+              period={period}
+              showLifetime={!!client.clientSince}
+              customRange={customRange}
+            />
+            {period === "custom" && customRange && (
+              <CustomRangeForm slug={clientSlug} from={customRange.from} to={customRange.to} />
+            )}
+          </div>
+          <ExportPdfButton slug={clientSlug} period={period} extraQuery={rangeQuery} />
         </div>
 
         <Suspense
@@ -148,14 +183,24 @@ export default async function ClientDashboardPage({
   // own promise independently, so the fast snapshot cards can stream in
   // before the slower weekly trend charts finish (see Next's docs on
   // streaming: start the fetch during render, pass the promise down).
-  const reportPromise = getClientReport(clientSlug, period);
-  const trendsPromise = getClientTrends(clientSlug, period, TREND_WEEKS);
+  const reportPromise = getClientReport(clientSlug, period, customRange);
+  const trendsPromise = getClientTrends(clientSlug, period, TREND_WEEKS, customRange);
 
   return (
     <DashboardShell title={client.name} topNav={topNav}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
-        <ExportPdfButton slug={clientSlug} period={period} />
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodToggle
+            slug={clientSlug}
+            period={period}
+            showLifetime={!!client.clientSince}
+            customRange={customRange}
+          />
+          {period === "custom" && customRange && (
+            <CustomRangeForm slug={clientSlug} from={customRange.from} to={customRange.to} />
+          )}
+        </div>
+        <ExportPdfButton slug={clientSlug} period={period} extraQuery={rangeQuery} />
       </div>
 
       <Suspense

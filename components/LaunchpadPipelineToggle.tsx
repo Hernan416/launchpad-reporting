@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { launchpadPipelines } from "@/config/launchpad";
 
-/** Tab-style switch between Launchpad's two real pipelines and their Combined view — analogous to PeriodToggle, but for which pipeline instead of which time window. Preserves the current period across a pipeline switch. */
-export function LaunchpadPipelineToggle({ pipeline, period }: { pipeline: string; period: string }) {
+/** Tab-style switch between Launchpad's two real pipelines and their Combined view — analogous to PeriodToggle, but for which pipeline instead of which time window. Preserves the current period (and, for "custom", the picked from/to) across a pipeline switch. */
+export function LaunchpadPipelineToggle({
+  pipeline,
+  period,
+  rangeQuery = "",
+}: {
+  pipeline: string;
+  period: string;
+  /** Extra query string to preserve, e.g. "&from=2026-08-01&to=2026-08-31" when period is "custom". Must start with "&". */
+  rangeQuery?: string;
+}) {
   const options = [
     { value: "combined", label: "Combined" },
     ...launchpadPipelines.map((p) => ({ value: p.key, label: p.name })),
@@ -15,7 +24,7 @@ export function LaunchpadPipelineToggle({ pipeline, period }: { pipeline: string
         return (
           <Link
             key={option.value}
-            href={`/dashboard/launchpad-ai?pipeline=${option.value}&period=${period}`}
+            href={`/dashboard/launchpad-ai?pipeline=${option.value}&period=${period}${rangeQuery}`}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
                 ? "bg-[#0067eb] text-white"

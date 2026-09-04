@@ -24,7 +24,8 @@ export async function CallFunnelTrendsSections({
 }) {
   const trends = await trendsPromise;
   const view = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey);
-  const monthGroups = period === "lifetime" ? groupWeeksByMonth(trends) : null;
+  const monthGroups = period === "lifetime" || period === "custom" ? groupWeeksByMonth(trends) : null;
+  const showMonthGroups = !!monthGroups && monthGroups.length > 1;
 
   return (
     <div className="space-y-8">
@@ -32,9 +33,9 @@ export async function CallFunnelTrendsSections({
         <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
           Weekly Detail — {rangeHeading}
         </h2>
-        {monthGroups ? (
+        {showMonthGroups ? (
           <div className="space-y-6">
-            {monthGroups.map((group) => (
+            {monthGroups!.map((group) => (
               <div key={group.monthLabel}>
                 <h3 className="mb-2 text-sm font-semibold text-slate-600 dark:text-white/60">
                   {group.monthLabel}

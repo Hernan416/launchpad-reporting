@@ -68,8 +68,14 @@ export interface ClientConfig {
   clientSince?: string;
 }
 
-/** "month" is a real calendar month (the 1st through the 30th/31st of whichever month is current) — not a rolling 30 days. Changed 2026-08-05 per the user, so reports line up with an actual calendar/invoicing month. */
-export type Period = "7d" | "month" | "lifetime";
+/** "month" is a real calendar month (the 1st through the 30th/31st of whichever month is current) — not a rolling 30 days. Changed 2026-08-05 per the user, so reports line up with an actual calendar/invoicing month. "custom" is a user-picked [from, to] range (inclusive both ends, see CustomRange) — added 2026-09-04. */
+export type Period = "7d" | "month" | "lifetime" | "custom";
+
+/** Explicit date-range boundaries for the "custom" period, both YYYY-MM-DD, inclusive on both ends (matches the date-picker UI and Meta's own time_range convention — no off-by-one adjustment needed there, unlike "month"). */
+export interface CustomRange {
+  from: string;
+  to: string;
+}
 
 export interface MetaMetrics {
   spend: number;

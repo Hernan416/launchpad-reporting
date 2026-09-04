@@ -1,4 +1,4 @@
-import type { Period } from "@/types";
+import type { CustomRange, Period } from "@/types";
 import type { WeekBucket } from "@/lib/weeks";
 import { currentMonthDateStringsUTC } from "@/lib/period";
 
@@ -119,19 +119,29 @@ async function fetchInsights(
  * an explicit time_range rather than a rolling preset — Meta has no
  * "this_month" equivalent we control the timezone of, and we want the
  * exact same UTC month boundary GHL uses so the two sources agree.
+ * `customRange` is required when period is "custom" — passed straight
+ * through as time_range since Meta's since/until is already inclusive on
+ * both ends, same as the date picker's own semantics (no +1 day adjustment
+ * needed here, unlike lib/period.ts's periodToRange).
  */
 export async function getMetaInsights(
   adAccountId: string,
   period: Period,
   leadActionType: string = "lead",
   landingPageViewActionType: string = "landing_page_view",
-  sinceDate?: string
+  sinceDate?: string,
+  customRange?: CustomRange
 ): Promise<MetaInsights> {
   const params = new URLSearchParams({
     fields: "spend,clicks,impressions,ctr,cpc,actions",
   });
 
-  if (period === "lifetime") {
+  if (period === "custom") {
+    if (!customRange) {
+      throw new Error("getMetaInsights: the custom period requires a customRange.");
+    }
+    params.set("time_range", JSON.stringify({ since: customRange.from, until: customRange.to }));
+  } else if (period === "lifetime") {
     if (!sinceDate) {
       throw new Error("getMetaInsights: the lifetime period requires sinceDate.");
     }

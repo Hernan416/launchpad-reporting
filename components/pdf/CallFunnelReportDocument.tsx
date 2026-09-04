@@ -8,7 +8,8 @@ import {
 } from "@/lib/monthlyRollup";
 import { pdfStyles } from "./pdfStyles";
 
-function periodLabel(period: Period, sinceLabel?: string): string {
+function periodLabel(period: Period, sinceLabel?: string, customRangeLabel?: string): string {
+  if (period === "custom") return customRangeLabel ?? "Custom Range";
   if (period === "lifetime") return sinceLabel ? `Lifetime (since ${sinceLabel})` : "Lifetime";
   if (period === "month") {
     return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -98,6 +99,7 @@ export function CallFunnelReportDocument({
   entryLabel,
   period,
   sinceLabel,
+  customRangeLabel,
   report,
   trends,
 }: {
@@ -105,6 +107,7 @@ export function CallFunnelReportDocument({
   entryLabel?: string;
   period: Period;
   sinceLabel?: string;
+  customRangeLabel?: string;
   report: CallFunnelReport;
   trends: WeeklyCallFunnelDataPoint[];
 }) {
@@ -117,12 +120,16 @@ export function CallFunnelReportDocument({
   });
 
   return (
-    <Document title={`Launchpad AI — ${pipelineTitle} — ${periodLabel(period, sinceLabel)} Report`}>
+    <Document
+      title={`Launchpad AI — ${pipelineTitle} — ${periodLabel(period, sinceLabel, customRangeLabel)} Report`}
+    >
       <Page size="A4" style={pdfStyles.page} wrap>
         <View style={pdfStyles.headerRow}>
           <View>
             <Text style={pdfStyles.clientName}>Launchpad AI — {pipelineTitle}</Text>
-            <Text style={pdfStyles.reportSubtitle}>Performance Report — {periodLabel(period, sinceLabel)}</Text>
+            <Text style={pdfStyles.reportSubtitle}>
+              Performance Report — {periodLabel(period, sinceLabel, customRangeLabel)}
+            </Text>
           </View>
           <Text style={pdfStyles.generatedAt}>Generated {generatedAt}</Text>
         </View>
@@ -218,7 +225,9 @@ export function CallFunnelReportDocument({
 
         {grandTotal && monthGroups.length > 1 && (
           <View wrap={false}>
-            <Text style={pdfStyles.monthHeading}>All-Time Total ({periodLabel(period, sinceLabel)})</Text>
+            <Text style={pdfStyles.monthHeading}>
+              All-Time Total ({periodLabel(period, sinceLabel, customRangeLabel)})
+            </Text>
             <View style={pdfStyles.table}>
               <WeeklyTableHeader columns={columns} />
               <WeeklyTableRow label="Grand Total" data={grandTotal} columns={columns} bold />
