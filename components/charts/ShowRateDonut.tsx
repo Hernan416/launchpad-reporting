@@ -3,6 +3,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { WeeklyDataPoint } from "@/types";
 import { ACCENT_HEX, CHART_NEUTRAL } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 const COLORS = [ACCENT_HEX.blue.strong, CHART_NEUTRAL];
 
@@ -26,13 +27,14 @@ export function ShowRateDonut({ data }: { data: WeeklyDataPoint[] }) {
           innerRadius="60%"
           outerRadius="85%"
           paddingAngle={2}
+          animationDuration={300}
         >
           {pieData.map((entry, index) => (
             <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip />
-        <Legend />
+        <Tooltip content={ChartTooltip} />
+        <Legend {...CHART_LEGEND_PROPS} />
       </PieChart>
     </ResponsiveContainer>
   );

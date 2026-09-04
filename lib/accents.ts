@@ -7,6 +7,8 @@ export type Accent = "blue" | "gold";
 interface AccentClasses {
   border: string;
   text: string;
+  /** Small solid-fill dot (e.g. a `size-2 rounded-full` marker next to a label) — the replacement for the old thick border-t/border-l card stripe, which read as a generic dashboard-template cliché. */
+  dot: string;
 }
 
 /**
@@ -21,10 +23,12 @@ export const ACCENT_CLASSES: Record<Accent, AccentClasses> = {
   blue: {
     border: "border-t-[#0067eb] border-l-[#0067eb] dark:border-t-[#0067eb] dark:border-l-[#0067eb]",
     text: "text-[#0067eb] dark:text-[#4d9fff]",
+    dot: "bg-[#0067eb] dark:bg-[#4d9fff]",
   },
   gold: {
     border: "border-t-[#ffcf00] border-l-[#ffcf00] dark:border-t-[#ffcf00] dark:border-l-[#ffcf00]",
     text: "text-[#8a6d00] dark:text-[#ffcf00]",
+    dot: "bg-[#b8860b] dark:bg-[#ffcf00]",
   },
 };
 

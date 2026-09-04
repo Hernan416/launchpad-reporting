@@ -3,6 +3,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { WeeklyPipelineDataPoint } from "@/types";
 import { ACCENT_HEX } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 const CANCELLED_COLOR = "#d97706"; // amber-600
 const LOST_COLOR = "#dc2626"; // red-600
@@ -33,13 +34,14 @@ export function AppointmentsOutcomeDonut({ data }: { data: WeeklyPipelineDataPoi
           innerRadius="60%"
           outerRadius="85%"
           paddingAngle={2}
+          animationDuration={300}
         >
           {pieData.map((entry) => (
             <Cell key={entry.name} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip />
-        <Legend />
+        <Tooltip content={ChartTooltip} />
+        <Legend {...CHART_LEGEND_PROPS} />
       </PieChart>
     </ResponsiveContainer>
   );

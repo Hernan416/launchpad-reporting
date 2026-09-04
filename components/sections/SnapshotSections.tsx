@@ -17,13 +17,13 @@ export async function SnapshotSections({
   const report = await reportPromise;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <p className="text-right text-sm text-slate-500 dark:text-white/55">
         Updated: {new Date(report.updatedAt).toLocaleString("en-US")}
       </p>
 
       {report.warnings.length > 0 && (
-        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
           <ul className="list-inside list-disc">
             {report.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -32,27 +32,34 @@ export async function SnapshotSections({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <HeadlineCard
-          label="Revenue Closed"
-          value={formatCurrency(report.headline.revenueClosed)}
-        />
-        <HeadlineCard label="CAC" value={formatCurrency(report.headline.cac)} />
-        <HeadlineCard label="ROAS" value={formatMultiplier(report.headline.roas)} />
-        <HeadlineCard label="Ad Spend" value={formatCurrency(report.headline.adSpend)} />
-        <HeadlineCard
-          label="Cost per Appointment"
-          value={formatCurrency(report.headline.costPerAppointment)}
-        />
-        <HeadlineCard
-          label="Revenue Opportunity"
-          value={formatCurrency(report.headline.revenueOpportunity)}
-        />
-        <HeadlineCard
-          label="Close Rate"
-          value={formatPercent(report.headline.closeRate)}
-          sublabel={`${formatNumber(report.headline.closedCount)}/${formatNumber(report.headline.shownCount)} appointments shown`}
-        />
+      <div>
+        <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-white/35">
+          Headline
+        </p>
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="col-span-2">
+            <HeadlineCard
+              label="Revenue Closed"
+              value={formatCurrency(report.headline.revenueClosed)}
+            />
+          </div>
+          <HeadlineCard label="CAC" value={formatCurrency(report.headline.cac)} />
+          <HeadlineCard label="ROAS" value={formatMultiplier(report.headline.roas)} />
+          <HeadlineCard label="Ad Spend" value={formatCurrency(report.headline.adSpend)} />
+          <HeadlineCard
+            label="Cost per Appointment"
+            value={formatCurrency(report.headline.costPerAppointment)}
+          />
+          <HeadlineCard
+            label="Revenue Opportunity"
+            value={formatCurrency(report.headline.revenueOpportunity)}
+          />
+          <HeadlineCard
+            label="Close Rate"
+            value={formatPercent(report.headline.closeRate)}
+            sublabel={`${formatNumber(report.headline.closedCount)}/${formatNumber(report.headline.shownCount)} appointments shown`}
+          />
+        </div>
       </div>
 
       <MetricGroup

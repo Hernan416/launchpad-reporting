@@ -21,13 +21,13 @@ export async function CallFunnelSnapshotSections({
   const view = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <p className="text-right text-sm text-slate-500 dark:text-white/55">
         Updated: {new Date(report.updatedAt).toLocaleString("en-US")}
       </p>
 
       {report.warnings.length > 0 && (
-        <div className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
           <ul className="list-inside list-disc">
             {report.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -36,30 +36,37 @@ export async function CallFunnelSnapshotSections({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <HeadlineCard
-          label="Revenue Closed"
-          value={formatCurrency(report.metrics.closedRevenue)}
-        />
-        {report.meta && (
-          <>
-            <HeadlineCard label="CAC" value={formatCurrency(report.meta.cac)} />
-            <HeadlineCard label="ROAS" value={formatMultiplier(report.meta.roas)} />
-            <HeadlineCard label="Ad Spend" value={formatCurrency(report.meta.spend)} />
-          </>
-        )}
-        <HeadlineCard
-          label="Show Rate"
-          value={formatPercent(report.metrics.showRate)}
-          sublabel={`${formatNumber(report.metrics.shows)}/${formatNumber(
-            report.metrics.shows + report.metrics.noShows
-          )} appointments shown`}
-        />
-        <HeadlineCard
-          label="Close Rate"
-          value={formatPercent(report.metrics.closeRate)}
-          sublabel={`${formatNumber(report.metrics.closed)}/${formatNumber(report.metrics.shows)} shows closed`}
-        />
+      <div>
+        <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-white/35">
+          Headline
+        </p>
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="col-span-2">
+            <HeadlineCard
+              label="Revenue Closed"
+              value={formatCurrency(report.metrics.closedRevenue)}
+            />
+          </div>
+          {report.meta && (
+            <>
+              <HeadlineCard label="CAC" value={formatCurrency(report.meta.cac)} />
+              <HeadlineCard label="ROAS" value={formatMultiplier(report.meta.roas)} />
+              <HeadlineCard label="Ad Spend" value={formatCurrency(report.meta.spend)} />
+            </>
+          )}
+          <HeadlineCard
+            label="Show Rate"
+            value={formatPercent(report.metrics.showRate)}
+            sublabel={`${formatNumber(report.metrics.shows)}/${formatNumber(
+              report.metrics.shows + report.metrics.noShows
+            )} appointments shown`}
+          />
+          <HeadlineCard
+            label="Close Rate"
+            value={formatPercent(report.metrics.closeRate)}
+            sublabel={`${formatNumber(report.metrics.closed)}/${formatNumber(report.metrics.shows)} shows closed`}
+          />
+        </div>
       </div>
 
       {report.meta && view && (

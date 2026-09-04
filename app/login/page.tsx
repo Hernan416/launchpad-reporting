@@ -38,8 +38,9 @@ export default async function LoginPage({
       <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-[#1e2128]">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-white/90">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-8 shadow-raised dark:bg-[#1e2128]">
+        <div className="mb-6 h-1 w-10 rounded-full bg-gradient-to-r from-[#0067eb] to-[#ffcf00]" />
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white/90">
           Launchpad AI Reporting
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-white/55">
@@ -47,7 +48,7 @@ export default async function LoginPage({
         </p>
 
         {error && (
-          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
+          <p className="mt-4 rounded-lg border border-red-200/60 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             Invalid username or password.
           </p>
         )}
@@ -66,7 +67,7 @@ export default async function LoginPage({
               type="text"
               autoComplete="username"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb] dark:border-white/15 dark:bg-[#16181d] dark:text-white/90"
+              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm text-slate-900 transition-colors duration-150 focus:border-[#0067eb] focus:outline-none focus:ring-2 focus:ring-[#0067eb]/40 dark:bg-[#16181d] dark:text-white/90"
             />
           </div>
           <div>
@@ -81,12 +82,12 @@ export default async function LoginPage({
               name="password"
               type="password"
               required
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0067eb] focus:outline-none focus:ring-1 focus:ring-[#0067eb] dark:border-white/15 dark:bg-[#16181d] dark:text-white/90"
+              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm text-slate-900 transition-colors duration-150 focus:border-[#0067eb] focus:outline-none focus:ring-2 focus:ring-[#0067eb]/40 dark:bg-[#16181d] dark:text-white/90"
             />
           </div>
           <button
             type="submit"
-            className="w-full rounded-md bg-[#0067eb] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0052ba]"
+            className="w-full rounded-full bg-[#0067eb] px-3 py-2 text-sm font-semibold text-white transition-[background-color,transform] duration-150 ease-snappy hover:bg-[#0052ba] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e2128]"
           >
             Sign in
           </button>

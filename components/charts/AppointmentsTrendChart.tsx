@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { WeeklyPipelineDataPoint } from "@/types";
 import { ACCENT_HEX, CHART_GRID_STROKE, CHART_TICK } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 const { strong } = ACCENT_HEX.blue;
 const CANCELLED_COLOR = "#d97706"; // amber-600
@@ -24,16 +25,17 @@ export function AppointmentsTrendChart({ data }: { data: WeeklyPipelineDataPoint
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
         <XAxis dataKey="weekLabel" tick={CHART_TICK} />
         <YAxis tick={CHART_TICK} />
-        <Tooltip />
-        <Legend />
-        <Bar dataKey="appointmentsBooked" name="Booked" fill={strong} radius={[4, 4, 0, 0]} />
+        <Tooltip content={ChartTooltip} />
+        <Legend {...CHART_LEGEND_PROPS} />
+        <Bar dataKey="appointmentsBooked" name="Booked" fill={strong} radius={[4, 4, 0, 0]} animationDuration={300} />
         <Bar
           dataKey="appointmentsCancelled"
           name="Cancelled"
           fill={CANCELLED_COLOR}
           radius={[4, 4, 0, 0]}
+          animationDuration={300}
         />
-        <Bar dataKey="appointmentsLost" name="Lost" fill={LOST_COLOR} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="appointmentsLost" name="Lost" fill={LOST_COLOR} radius={[4, 4, 0, 0]} animationDuration={300} />
       </BarChart>
     </ResponsiveContainer>
   );

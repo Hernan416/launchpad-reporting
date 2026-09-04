@@ -26,24 +26,26 @@ export default async function MasterDashboardPage() {
           <Link
             key={client.slug}
             href={`/dashboard/${client.slug}`}
-            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-[#0067eb]/40 hover:shadow-md dark:border-white/10 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
+            className="group rounded-xl border border-border bg-white p-5 shadow-card transition-[box-shadow,transform,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:border-[#0067eb]/40 hover:shadow-raised active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
           >
             <p className="text-lg font-semibold text-slate-900 dark:text-white/90">
               {client.name}
             </p>
-            <p className="mt-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
-              View report →
+            <p className="mt-1 flex items-center gap-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
+              View report
+              <span className="transition-transform duration-200 ease-snappy group-hover:translate-x-0.5">→</span>
             </p>
           </Link>
         ))}
         {/* Admin-only internal account — not in config/clients.ts, so it's added directly here rather than via the clients.map above. */}
         <Link
           href="/dashboard/launchpad-ai"
-          className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-[#0067eb]/40 hover:shadow-md dark:border-white/10 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
+          className="group rounded-xl border border-border bg-white p-5 shadow-card transition-[box-shadow,transform,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:border-[#0067eb]/40 hover:shadow-raised active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
         >
           <p className="text-lg font-semibold text-slate-900 dark:text-white/90">Launchpad AI</p>
-          <p className="mt-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
-            View report →
+          <p className="mt-1 flex items-center gap-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
+            View report
+            <span className="transition-transform duration-200 ease-snappy group-hover:translate-x-0.5">→</span>
           </p>
         </Link>
       </div>

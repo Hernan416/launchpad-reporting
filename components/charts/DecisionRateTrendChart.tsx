@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { WeeklyPipelineDataPoint } from "@/types";
 import { ACCENT_HEX, CHART_GRID_STROKE, CHART_TICK } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 const YES_COLOR = "#059669"; // emerald-600
 const NO_COLOR = "#dc2626"; // red-600
@@ -30,10 +31,24 @@ export function DecisionRateTrendChart({ data }: { data: WeeklyPipelineDataPoint
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
         <XAxis dataKey="weekLabel" tick={CHART_TICK} />
         <YAxis tick={CHART_TICK} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
-        <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
-        <Legend />
-        <Line type="monotone" dataKey="yesRatePct" name="Yes %" stroke={YES_COLOR} strokeWidth={2} />
-        <Line type="monotone" dataKey="noRatePct" name="No %" stroke={NO_COLOR} strokeWidth={2} />
+        <Tooltip content={(props) => <ChartTooltip {...props} valueFormatter={(v) => `${v.toFixed(1)}%`} />} />
+        <Legend {...CHART_LEGEND_PROPS} />
+        <Line
+          type="monotone"
+          dataKey="yesRatePct"
+          name="Yes %"
+          stroke={YES_COLOR}
+          strokeWidth={2}
+          animationDuration={300}
+        />
+        <Line
+          type="monotone"
+          dataKey="noRatePct"
+          name="No %"
+          stroke={NO_COLOR}
+          strokeWidth={2}
+          animationDuration={300}
+        />
         <Line
           type="monotone"
           dataKey="decisionRatePct"
@@ -41,6 +56,7 @@ export function DecisionRateTrendChart({ data }: { data: WeeklyPipelineDataPoint
           stroke={ACCENT_HEX.gold.strong}
           strokeWidth={2}
           strokeDasharray="5 5"
+          animationDuration={300}
         />
       </LineChart>
     </ResponsiveContainer>

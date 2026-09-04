@@ -3,10 +3,10 @@ import { clients } from "@/config/clients";
 
 export function ClientNav({ currentSlug }: { currentSlug: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-6 py-3 dark:border-white/10">
+    <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-3">
       <Link
         href="/dashboard"
-        className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-[#0067eb] dark:text-white/60 dark:hover:text-[#ffcf00]"
+        className="flex items-center gap-1 rounded-sm text-sm font-medium text-slate-600 transition-colors duration-150 hover:text-[#0067eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 dark:text-white/60 dark:hover:text-[#ffcf00]"
       >
         ← All Clients
       </Link>
@@ -15,10 +15,10 @@ export function ClientNav({ currentSlug }: { currentSlug: string }) {
         <Link
           key={client.slug}
           href={`/dashboard/${client.slug}`}
-          className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 ${
             client.slug === currentSlug
               ? "bg-[#0067eb] text-white"
-              : "text-slate-600 hover:bg-slate-100 hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
+              : "text-slate-600 hover:bg-black/[0.05] hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
           }`}
         >
           {client.name}
@@ -28,10 +28,10 @@ export function ClientNav({ currentSlug }: { currentSlug: string }) {
       {/* Admin-only internal account — not in config/clients.ts, so it's rendered here directly rather than via the clients.map above. See config/launchpad.ts and proxy.ts for why a "client" role user can never reach it. */}
       <Link
         href="/dashboard/launchpad-ai"
-        className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+        className={`rounded-full px-3 py-1 text-sm font-medium transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 ${
           currentSlug === "launchpad-ai"
             ? "bg-[#0067eb] text-white"
-            : "text-slate-600 hover:bg-slate-100 hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
+            : "text-slate-600 hover:bg-black/[0.05] hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
         }`}
       >
         Launchpad AI

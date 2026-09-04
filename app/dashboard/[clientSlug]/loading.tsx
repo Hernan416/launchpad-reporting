@@ -6,9 +6,9 @@ import { CardGridSkeleton } from "@/components/skeletons/CardGridSkeleton";
 export default function Loading() {
   return (
     <div className="min-h-screen bg-[#f4f6fa] dark:bg-[#16181d]">
-      <div className="border-b border-slate-200 bg-white dark:border-white/10 dark:bg-[#1e2128]">
+      <div className="border-b border-border bg-white dark:bg-[#1e2128]">
         <div className="h-1.5 bg-gradient-to-r from-[#0067eb] to-[#ffcf00]" />
-        <div className="mx-auto max-w-6xl px-6 py-4">
+        <div className="mx-auto max-w-6xl px-6 py-5">
           <div className="h-6 w-40 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
         </div>
       </div>

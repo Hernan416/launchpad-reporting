@@ -22,7 +22,7 @@ export function CustomRangeForm({
     <form
       action={`/dashboard/${slug}`}
       method="get"
-      className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 dark:border-white/10 dark:bg-[#1e2128]"
+      className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-border bg-white p-1.5 shadow-card dark:bg-[#1e2128]"
     >
       <input type="hidden" name="period" value="custom" />
       {extraHidden &&
@@ -35,7 +35,7 @@ export function CustomRangeForm({
         defaultValue={from}
         max={to}
         required
-        className="rounded-md border border-slate-200 bg-transparent px-2 py-1 text-sm text-slate-700 dark:border-white/10 dark:text-white/80"
+        className="rounded-lg border border-border bg-transparent px-2 py-1 text-sm text-slate-700 transition-colors duration-150 focus:border-[#0067eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/40 dark:text-white/80"
       />
       <span className="text-slate-400 dark:text-white/40">–</span>
       <input
@@ -44,11 +44,11 @@ export function CustomRangeForm({
         defaultValue={to}
         max={today}
         required
-        className="rounded-md border border-slate-200 bg-transparent px-2 py-1 text-sm text-slate-700 dark:border-white/10 dark:text-white/80"
+        className="rounded-lg border border-border bg-transparent px-2 py-1 text-sm text-slate-700 transition-colors duration-150 focus:border-[#0067eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/40 dark:text-white/80"
       />
       <button
         type="submit"
-        className="rounded-md bg-[#0067eb] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#0058c7]"
+        className="rounded-full bg-[#0067eb] px-3 py-1.5 text-sm font-medium text-white transition-[background-color,transform] duration-150 ease-snappy hover:bg-[#0058c7] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50"
       >
         Apply
       </button>

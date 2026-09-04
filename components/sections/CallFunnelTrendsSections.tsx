@@ -28,9 +28,10 @@ export async function CallFunnelTrendsSections({
   const showMonthGroups = !!monthGroups && monthGroups.length > 1;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
+        <h2 className="mb-3 flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white/90">
+          <span className="inline-block size-1.5 rounded-full bg-slate-400 dark:bg-white/30" aria-hidden />
           Weekly Detail — {rangeHeading}
         </h2>
         {showMonthGroups ? (

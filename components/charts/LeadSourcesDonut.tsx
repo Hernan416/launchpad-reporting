@@ -3,6 +3,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { WeeklyPipelineDataPoint } from "@/types";
 import { CHART_PALETTE } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 /** Sums leadsBySource (a per-week dynamic breakdown) across the whole trend window into one totals-by-label pie. */
 export function LeadSourcesDonut({ data }: { data: WeeklyPipelineDataPoint[] }) {
@@ -26,13 +27,14 @@ export function LeadSourcesDonut({ data }: { data: WeeklyPipelineDataPoint[] }) 
           innerRadius="60%"
           outerRadius="85%"
           paddingAngle={2}
+          animationDuration={300}
         >
           {pieData.map((entry, index) => (
             <Cell key={entry.name} fill={CHART_PALETTE[index % CHART_PALETTE.length]} />
           ))}
         </Pie>
-        <Tooltip />
-        <Legend />
+        <Tooltip content={ChartTooltip} />
+        <Legend {...CHART_LEGEND_PROPS} />
       </PieChart>
     </ResponsiveContainer>
   );

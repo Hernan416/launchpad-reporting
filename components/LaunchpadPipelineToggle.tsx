@@ -18,14 +18,14 @@ export function LaunchpadPipelineToggle({
   ];
 
   return (
-    <div className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-[#1e2128]">
+    <div className="inline-flex flex-wrap rounded-xl border border-border bg-white p-1 shadow-card dark:bg-[#1e2128]">
       {options.map((option) => {
         const active = option.value === pipeline;
         return (
           <Link
             key={option.value}
             href={`/dashboard/launchpad-ai?pipeline=${option.value}&period=${period}${rangeQuery}`}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 ${
               active
                 ? "bg-[#0067eb] text-white"
                 : "text-slate-600 hover:text-[#0067eb] dark:text-white/60 dark:hover:text-[#ffcf00]"

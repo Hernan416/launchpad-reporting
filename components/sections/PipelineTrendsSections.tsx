@@ -27,7 +27,7 @@ export async function PipelineTrendsSections({
   const trends = await trendsPromise;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title={`Leads — ${rangeHeading}`} subtitle="Total leads per week" accent="blue">
           <LeadsTrendChart data={trends} />

@@ -1,9 +1,9 @@
 export default function Loading() {
   return (
     <div className="min-h-screen bg-[#f4f6fa] dark:bg-[#16181d]">
-      <div className="border-b border-slate-200 bg-white dark:border-white/10 dark:bg-[#1e2128]">
+      <div className="border-b border-border bg-white dark:bg-[#1e2128]">
         <div className="h-1.5 bg-gradient-to-r from-[#0067eb] to-[#ffcf00]" />
-        <div className="mx-auto max-w-6xl px-6 py-4">
+        <div className="mx-auto max-w-6xl px-6 py-5">
           <div className="h-6 w-64 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
         </div>
       </div>
@@ -12,7 +12,7 @@ export default function Loading() {
           {Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#1e2128]"
+              className="animate-pulse rounded-xl border border-border bg-white p-5 shadow-card dark:bg-[#1e2128]"
             >
               <div className="h-5 w-2/3 rounded bg-slate-200 dark:bg-white/10" />
               <div className="mt-2 h-4 w-1/3 rounded bg-slate-200 dark:bg-white/10" />

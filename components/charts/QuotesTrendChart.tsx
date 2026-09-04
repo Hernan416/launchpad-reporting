@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { WeeklyPipelineDataPoint } from "@/types";
 import { ACCENT_HEX, CHART_GRID_STROKE, CHART_TICK } from "@/lib/accents";
+import { CHART_LEGEND_PROPS, ChartTooltip } from "./ChartTooltip";
 
 const { strong, soft } = ACCENT_HEX.gold;
 const YES_COLOR = "#059669"; // emerald-600
@@ -24,12 +25,12 @@ export function QuotesTrendChart({ data }: { data: WeeklyPipelineDataPoint[] }) 
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
         <XAxis dataKey="weekLabel" tick={CHART_TICK} />
         <YAxis tick={CHART_TICK} />
-        <Tooltip />
-        <Legend />
-        <Bar dataKey="quotesSent" name="Quotes Sent" fill={strong} radius={[4, 4, 0, 0]} />
-        <Bar dataKey="quoteYes" name="Quote - Yes" fill={YES_COLOR} radius={[4, 4, 0, 0]} />
-        <Bar dataKey="quoteNo" name="Quote - No" fill={NO_COLOR} radius={[4, 4, 0, 0]} />
-        <Bar dataKey="reviewing" name="Reviewing" fill={soft} radius={[4, 4, 0, 0]} />
+        <Tooltip content={ChartTooltip} />
+        <Legend {...CHART_LEGEND_PROPS} />
+        <Bar dataKey="quotesSent" name="Quotes Sent" fill={strong} radius={[4, 4, 0, 0]} animationDuration={300} />
+        <Bar dataKey="quoteYes" name="Quote - Yes" fill={YES_COLOR} radius={[4, 4, 0, 0]} animationDuration={300} />
+        <Bar dataKey="quoteNo" name="Quote - No" fill={NO_COLOR} radius={[4, 4, 0, 0]} animationDuration={300} />
+        <Bar dataKey="reviewing" name="Reviewing" fill={soft} radius={[4, 4, 0, 0]} animationDuration={300} />
       </BarChart>
     </ResponsiveContainer>
   );

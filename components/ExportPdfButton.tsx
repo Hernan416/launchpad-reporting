@@ -13,7 +13,7 @@ export function ExportPdfButton({
   return (
     <a
       href={`/api/report-pdf/${slug}?period=${period}${extraQuery}`}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-[#0067eb] hover:text-[#0067eb] dark:border-white/10 dark:bg-[#1e2128] dark:text-white/60 dark:hover:text-[#ffcf00]"
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-1.5 text-sm font-medium text-slate-600 shadow-card transition-[color,border-color,transform] duration-150 ease-snappy hover:border-[#0067eb] hover:text-[#0067eb] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 dark:bg-[#1e2128] dark:text-white/60 dark:hover:text-[#ffcf00]"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
