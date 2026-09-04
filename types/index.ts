@@ -112,6 +112,9 @@ export interface WeeklyDataPoint {
   weekLabel: string;
   weekStart: string;
   adSpend: number;
+  /** Raw click/impression counts, not just the derived cpc/ctr rates — needed to correctly roll several weeks up into a month's CPC/CTR (averaging weekly rates would be wrong; you have to sum the raw counts first). */
+  clicks: number;
+  impressions: number;
   leads: number;
   cpc: number;
   ctr: number;
@@ -181,4 +184,74 @@ export interface WeeklyPipelineDataPoint {
   appointmentsBooked: number;
   appointmentsCancelled: number;
   appointmentsLost: number;
+}
+
+/**
+ * Launchpad AI's own internal admin-only dashboard (config/launchpad.ts) —
+ * a single GHL pipeline tracked call-center-style: every opportunity CREATED
+ * is one call/contact made, current pipeline stage tells whether it turned
+ * into a booked appointment, a show/no-show, and a close. Distinct from
+ * CustomFunnelConfig because that shape assumes TWO pipelines (a quote
+ * pipeline plus a separate booking pipeline) merged together — Launchpad's
+ * two pipelines ("Roofing Ads 2026", "Cold Call Sales") are each already
+ * self-contained, and are combined at the report level instead (see
+ * getLaunchpadReport), not the stage-config level.
+ */
+export interface CallFunnelStageConfig {
+  pipelineName: string;
+  /** Every stage from "an appointment exists" onward, current-stage snapshot — mirrors ghlShowStageNames' "reached this far" convention. */
+  bookedStageNames: string[];
+  /** Showed up, regardless of what happened after (includes Not Closed/Closed, not just the "Showed" stage itself). */
+  showStageNames: string[];
+  noShowStageNames: string[];
+  closedStageNames: string[];
+  /** Showed up but didn't close — the equivalent of "Quote Rejected" at the roofing clients. */
+  notClosedStageNames: string[];
+}
+
+export interface CallPipelineViewConfig {
+  key: string;
+  name: string;
+  /** "Leads" for the ad-driven pipeline, "Calls Made" for the cold-calling one — same underlying number (opportunities created in the period), different label per view's vocabulary. */
+  entryLabel: string;
+  /** Reused purely as a vehicle for lib/ghl.ts's fetch plumbing (GHL_TOKEN_LAUNCHPAD_AI env var via slug, ghlLocationId, clientSince as this pipeline's own Lifetime anchor) — metaAdAccountId is only read when hasMetaAds is true. */
+  client: ClientConfig;
+  hasMetaAds: boolean;
+  funnel: CallFunnelStageConfig;
+}
+
+export interface CallFunnelMetrics {
+  callsMade: number;
+  appointmentsBooked: number;
+  shows: number;
+  noShows: number;
+  /** Shows ÷ (Shows + No-Shows) — excludes Cancelled/Territory Taken/Disqualified/etc., which never had a real appointment pending. */
+  showRate: number;
+  closed: number;
+  notClosed: number;
+  closeRate: number;
+  closedRevenue: number;
+}
+
+export interface CallFunnelReport {
+  period: Period;
+  updatedAt: string;
+  warnings: string[];
+  metrics: CallFunnelMetrics;
+  /** Absent for the Combined view (per the user 2026-09-04: no blended ad spend/CAC/ROAS, and Calls Made isn't shown there either — see components/sections/CallFunnelSnapshotSections.tsx). */
+  meta?: MetaMetrics & { cac: number; roas: number };
+}
+
+export interface WeeklyCallFunnelDataPoint {
+  weekLabel: string;
+  weekStart: string;
+  callsMade: number;
+  appointmentsBooked: number;
+  shows: number;
+  noShows: number;
+  showRate: number;
+  closed: number;
+  notClosed: number;
+  closeRate: number;
+  closedRevenue: number;
 }

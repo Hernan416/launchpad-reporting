@@ -128,18 +128,43 @@ export const clients: ClientConfig[] = [
     // a closed-looking stage — GHL's own opportunity status field is now
     // checked as a second, independent path to "closed" for every standard
     // client, not just this one.
+    //
+    // *** RESTRUCTURED AGAIN 2026-09-01 — same coordinated, account-wide
+    // change as JJ Roofing and US Home Pro that day (all three pipelines'
+    // dateUpdated within ~2.5 hours of each other). ghlQuoteSentStageNames/
+    // ghlShowStageNames below were stale from 2026-08-09 until fixed
+    // 2026-09-03 — "Showed and Quoted"/"In AI Quote Followup Sequence"/
+    // "Closed" haven't existed since 2026-08-09, and stayed unfixed pending
+    // a business-logic call (see JJ Roofing's 2026-08-09 comment above — a
+    // 15+ stage pipeline needs a human decision on what counts as
+    // quoted/shown, not a mechanical rename). Now mapped to match JJ
+    // Roofing's (already-confirmed) logic one-for-one, since GHL's own
+    // per-stage `originId` field proves this is literally the same pipeline
+    // template pushed to all three accounts. One difference from JJ
+    // Roofing: this pipeline additionally has a "Quote Rejected - Job Lost"
+    // stage alongside "Quote Rejected" (JJ Roofing only has the latter) —
+    // both have real opportunities with populated monetaryValue (i.e. both
+    // represent "got a real quote, then rejected it"), so both are included
+    // everywhere "Quote Rejected" is. "Long Term Nurture" is excluded from
+    // ghlShowStageNames for the same reason as JJ Roofing (confirmed
+    // 2026-08-17): a lead parked there shouldn't count toward Show Rate.
     ghlPipelineName: "Meta Ads",
     ghlQuoteSentStageNames: [
-      "Showed and Quoted",
-      "In AI Quote Followup Sequence",
-      "Closed",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
       "Quote Rejected - Job Lost",
     ],
-    ghlClosedStageNames: ["Quote Closed"],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
     ghlShowStageNames: [
-      "Showed and Quoted",
-      "In AI Quote Followup Sequence",
-      "Closed",
+      "Appt Showed - Quote Requested",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
       "Quote Rejected - Job Lost",
     ],
   },
@@ -152,38 +177,63 @@ export const clients: ClientConfig[] = [
     ghlLocationId: "ZamGgQEEEFmbnEaCE2ru",
     // Manual Booking, Free Design Visit Appointment
     ghlCalendarIds: ["eYnFUn36MWEDuyv5BPq6", "jOlkgFgxZinYvHUWo7uq"],
-    // Real "Meta Ads" pipeline mapped via the GHL MCP 2026-07-27 (only pipeline
-    // in use — "AI Quote Follow Up" also exists but has 0 opportunities and is
-    // intentionally ignored, confirmed with the user). Single active service
-    // line right now: kitchen cabinet refacing (a separate roofing survey is
-    // defined in this location's custom fields but unused/legacy — confirmed
-    // with the user, not a second live funnel to design around).
+    // Originally mapped via the GHL MCP 2026-07-27 as a single-pipeline,
+    // simple 4-stage flow: showing up and getting quoted were the same
+    // event ("Showed and Quoted"), so quotesSent and shows shared one stage
+    // set (see the old comment this replaced, preserved in git history at
+    // config/clients.ts if needed).
     //
-    // There's no separate "quote sent" step here — the in-home visit itself
-    // delivers the quote (the stage is literally named "Showed and Quoted"),
-    // so quotesSent and the pipeline-based show count share the same stage
-    // set: everyone who reached "Showed and Quoted" or any stage downstream
-    // of it (they don't move backward out of this set once they're in it).
+    // *** REPLACED ENTIRELY 2026-09-01 — same coordinated, account-wide
+    // pipeline change as JJ Roofing and One Day Roofing that day. This
+    // wasn't a rename like the others; the ENTIRE pipeline was swapped for
+    // JJ Roofing's 15+ stage structure (New Application, Attempted Contact
+    // (No Booking), Appointment Booked, Appt Confirmed, Appt Showed - Quote
+    // Requested, Waiting for Quote, Quote Delivered, Quote Closed, Deposit
+    // Collected, Job Completed, Appt Cancelled, Quote Rejected - Job Lost,
+    // No Show/Ghosting, Quote Rejected, Long Term Nurture, Dead Lead) —
+    // confirmed via GHL's per-stage `originId` field, which every one of
+    // these new stages has, pointing back to a shared template; JJ
+    // Roofing's own stages have no originId at all, meaning JJ Roofing is
+    // the template source. Single active service line (kitchen cabinet
+    // refacing) is unaffected by this — it's purely a pipeline-stage
+    // change.
     //
-    // Confirmed with the user: the pipeline stage is the reliable source for
-    // show/no-show/cancelled — neither the calendar's own appointmentStatus
-    // nor the "Customer Status" custom field are kept in sync (found stale in
-    // concrete cases, e.g. an opportunity already at "Closed" whose calendar
-    // event still said "confirmed"). ghlShowStatus is deliberately left unset
-    // so getAppointmentStats uses ghlShowStageNames instead of calendar status.
+    // Mapped identically to JJ Roofing/One Day Roofing's now-confirmed
+    // logic (same template = same business meaning per stage): quotesSent/
+    // closed/shows all follow the same stage sets. ghlShowStatus stays
+    // unset — same reasoning as before (calendar appointmentStatus isn't
+    // reliable), now via ghlShowStageNames' pipeline-stage logic instead of
+    // the old 4-stage set.
+    //
+    // *** "Quote Rejected - Job Lost" REMOVED 2026-09-03 — the client
+    // deleted this stage from the live pipeline that day (confirmed via the
+    // GHL API: the stage ID no longer exists) and merged its opportunities
+    // into "Quote Rejected" via GHL's own UI. Verified this reassignment
+    // was already complete and correct on GHL's side before touching
+    // anything here — every one of this client's 48 opportunities points to
+    // a still-valid current stage ID, zero orphans — so nothing needed
+    // moving. This is a pure config cleanup: the string "Quote Rejected -
+    // Job Lost" can never match a real stage again, so it's removed rather
+    // than left as harmless-but-dead. (Same change was made to One Day
+    // Roofing's live pipeline the same day, per the user — its config still
+    // has the entry as of this comment; ask before touching it, since the
+    // user scoped this cleanup to US Home Pro only.)
     ghlPipelineName: "Meta Ads",
     ghlQuoteSentStageNames: [
-      "Showed and Quoted",
-      "In AI Quote Followup Sequence",
-      "Closed",
-      "Quote Rejected - Job Lost",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
     ],
-    ghlClosedStageNames: ["Closed"],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
     ghlShowStageNames: [
-      "Showed and Quoted",
-      "In AI Quote Followup Sequence",
-      "Closed",
-      "Quote Rejected - Job Lost",
+      "Appt Showed - Quote Requested",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
     ],
   },
   {
@@ -244,6 +294,105 @@ export const clients: ClientConfig[] = [
     ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
     ghlShowStageNames: [
       "Appt Showed - Quote Requested",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+  },
+  {
+    slug: "osland-roofing",
+    name: "Osland Roofing",
+    metaAdAccountId: "act_1221978998703447",
+    // Client's own start date with us, per the user 2026-09-04.
+    clientSince: "2026-08-31",
+    ghlLocationId: "nCEHlfXdchVCeaz1sIBp",
+    // Mapped 2026-09-04 via direct GHL API calls. Brand new account (pipeline
+    // created 2026-08-23, only 3 opportunities total at mapping time) — this
+    // config is based on matching JJ Roofing's already-confirmed template
+    // one-for-one (same "Meta Ads" pipeline, same stage set) rather than on
+    // deep cross-referencing against real data, since there isn't enough
+    // volume yet to validate assumptions the way it was done for the other
+    // clients. Revisit once real volume builds up.
+    //
+    // Two real calendars exist: "MANUAL BOOKING - In-Person Roof
+    // Inspections" and "In-person Roof Inspection" (the self-serve booking
+    // widget one — confirmed as the real one via an actual opportunity's
+    // attribution data, mediumId matching this calendar's ID). *** BOTH
+    // currently show 0 events even over a wide past+future window despite
+    // a live opportunity sitting at "Appt Booked" — either nothing's been
+    // booked yet, or this Private Integration Token may be missing the
+    // Calendars read scope. Ask the user to double-check that scope if
+    // appointments/shows read as zero once real leads start booking.
+    //
+    // Stage set is JJ Roofing's exact template, with one real naming
+    // difference: this pipeline's show-stage is called "Appt Showed" (no
+    // "- Quote Requested" suffix). It also has an extra stage, "Needs Follow
+    // Up", not present in any other client's pipeline — left out of every
+    // stage-name list below since its business meaning hasn't been
+    // confirmed yet (ask the user once it starts getting used).
+    ghlCalendarIds: ["0MKvdysMQ3Zjsx2l4EHT", "IaCz8mmxNtzejVfZYW3N"],
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+    ghlShowStageNames: [
+      "Appt Showed",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+  },
+  {
+    slug: "mcguire-roofing",
+    name: "McGuire Roofing",
+    metaAdAccountId: "act_966629862503342",
+    // Client's own start date with us, per the user 2026-09-04.
+    clientSince: "2026-09-03",
+    ghlLocationId: "fXAFPRrS3OxhfgO1or7L",
+    // Mapped 2026-09-04 via direct GHL API calls. This location also has two
+    // OTHER pipelines ("Repairs", "Organic Re-Roof") for non-Meta-Ads lead
+    // sources — ignored here, same as every other client's dormant
+    // secondary pipelines. The "Meta Ads" pipeline itself was created the
+    // SAME DAY as this mapping (2026-09-03) with 0 opportunities in it yet —
+    // its `originId` on every stage points back to Osland Roofing's "Meta
+    // Ads" pipeline ID, confirming Osland's structure was used as the
+    // template to build this one. Config below mirrors Osland/JJ Roofing's
+    // template one-for-one; there is currently ZERO real data to validate
+    // any of it against, so treat every assumption here as provisional
+    // until real leads start flowing through.
+    //
+    // Three calendars exist: "SDR Calendar" (excluded — looks internal/rep-
+    // facing, not client-appointment-facing, but unconfirmed), "Testing"
+    // (excluded — same dummy-calendar pattern seen at other clients), and
+    // "In-Home Roof Estimate" (included — matches the real-calendar naming
+    // convention used at JJ Roofing/One Day Roofing). *** All three show 0
+    // events even over a wide past+future window — same
+    // possibly-missing-Calendars-scope concern as Osland above.
+    //
+    // Same "Needs Follow Up" extra stage as Osland (business meaning
+    // unconfirmed, left out of every list below) and the same "Appt Showed"
+    // naming (no "- Quote Requested" suffix).
+    ghlCalendarIds: ["uODbVmNBqFAzTx7hKpDu"],
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+    ghlShowStageNames: [
+      "Appt Showed",
       "Quote Delivered",
       "Quote Closed",
       "Deposit Collected",

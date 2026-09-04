@@ -1,20 +1,26 @@
 import type {
+  CallFunnelReport,
   ClientReport,
   LeadSourceCount,
   PipelineFunnelReport,
   Period,
+  WeeklyCallFunnelDataPoint,
   WeeklyDataPoint,
   WeeklyPipelineDataPoint,
 } from "@/types";
 import { getClientBySlug } from "@/config/clients";
+import { getLaunchpadPipeline, launchpadCombinedSince, launchpadPipelines } from "@/config/launchpad";
 import { getMetaInsights, getMetaWeeklyInsights, type MetaInsights } from "@/lib/meta";
 import {
   getAppointmentStats,
+  getCallFunnelStats,
   getPipelineFunnelStats,
   getSalesStats,
   getWeeklyAppointmentStats,
+  getWeeklyCallFunnelStats,
   getWeeklyPipelineFunnelStats,
   getWeeklySalesStats,
+  type CallFunnelStats,
 } from "@/lib/ghl";
 import { getWeekBuckets, getWeekBucketsFrom } from "@/lib/weeks";
 import type { WeekBucket } from "@/lib/weeks";
@@ -224,6 +230,8 @@ export async function getClientTrends(
       weekLabel: bucket.label,
       weekStart: bucket.start.toISOString(),
       adSpend: meta.spend,
+      clicks: meta.clicks,
+      impressions: meta.impressions,
       // GHL's deduplicated opportunity count, not Meta's raw "lead" action — see getClientReport.
       leads: sales.leads,
       cpc: meta.cpc,
@@ -364,6 +372,209 @@ export async function getPipelineFunnelTrends(
       appointmentsBooked: w.appointmentsBooked,
       appointmentsCancelled: w.appointmentsCancelled,
       appointmentsLost: w.appointmentsLost,
+    };
+  });
+}
+
+const EMPTY_CALL_FUNNEL_STATS: CallFunnelStats = {
+  callsMade: 0,
+  appointmentsBooked: 0,
+  shows: 0,
+  noShows: 0,
+  closed: 0,
+  notClosed: 0,
+  closedRevenue: 0,
+};
+
+function buildCallFunnelMetrics(stats: CallFunnelStats) {
+  return {
+    callsMade: stats.callsMade,
+    appointmentsBooked: stats.appointmentsBooked,
+    shows: stats.shows,
+    noShows: stats.noShows,
+    showRate: safeDivide(stats.shows, stats.shows + stats.noShows),
+    closed: stats.closed,
+    notClosed: stats.notClosed,
+    closeRate: safeDivide(stats.closed, stats.shows),
+    closedRevenue: stats.closedRevenue,
+  };
+}
+
+function sumCallFunnelStats(a: CallFunnelStats, b: CallFunnelStats): CallFunnelStats {
+  return {
+    callsMade: a.callsMade + b.callsMade,
+    appointmentsBooked: a.appointmentsBooked + b.appointmentsBooked,
+    shows: a.shows + b.shows,
+    noShows: a.noShows + b.noShows,
+    closed: a.closed + b.closed,
+    notClosed: a.notClosed + b.notClosed,
+    closedRevenue: a.closedRevenue + b.closedRevenue,
+  };
+}
+
+/**
+ * Launchpad AI's own admin-only dashboard (config/launchpad.ts) — one of its
+ * two real pipelines, or "combined" for both summed together. The Combined
+ * view deliberately omits Calls Made and Meta ad metrics (no cac/roas either)
+ * per the user 2026-09-04: only one of the two pipelines has ad spend at
+ * all, and blending a call count across two differently-shaped funnels isn't
+ * a meaningful number — see CallFunnelReport.meta.
+ */
+export async function getLaunchpadReport(pipelineKey: string, period: Period): Promise<CallFunnelReport> {
+  const warnings: string[] = [];
+
+  if (pipelineKey === "combined") {
+    const results = await Promise.allSettled(
+      launchpadPipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period))
+    );
+    let totals = EMPTY_CALL_FUNNEL_STATS;
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") {
+        totals = sumCallFunnelStats(totals, r.value);
+      } else {
+        console.error(`[metrics] Launchpad ${launchpadPipelines[i].key} fetch failed:`, r.reason);
+        warnings.push(`Couldn't load ${launchpadPipelines[i].name} from GHL.`);
+      }
+    });
+    return {
+      period,
+      updatedAt: new Date().toISOString(),
+      warnings,
+      metrics: buildCallFunnelMetrics(totals),
+    };
+  }
+
+  const view = getLaunchpadPipeline(pipelineKey);
+  if (!view) {
+    throw new Error(`Unknown Launchpad pipeline key: ${pipelineKey}`);
+  }
+
+  const [statsResult, metaResult] = await Promise.allSettled([
+    getCallFunnelStats(view.client, view.funnel, period),
+    view.hasMetaAds
+      ? getMetaInsights(
+          view.client.metaAdAccountId,
+          period,
+          view.client.metaLeadActionType,
+          view.client.metaLandingPageViewActionType,
+          view.client.clientSince
+        )
+      : Promise.resolve(null),
+  ]);
+
+  let stats = EMPTY_CALL_FUNNEL_STATS;
+  if (statsResult.status === "fulfilled") {
+    stats = statsResult.value;
+  } else {
+    console.error(`[metrics] Launchpad ${pipelineKey} fetch failed:`, statsResult.reason);
+    warnings.push(`Couldn't load ${view.name} from GHL.`);
+  }
+
+  let meta: CallFunnelReport["meta"];
+  if (view.hasMetaAds) {
+    if (metaResult.status === "fulfilled" && metaResult.value) {
+      const m = metaResult.value;
+      meta = {
+        spend: m.spend,
+        clicks: m.clicks,
+        impressions: m.impressions,
+        cpc: m.cpc,
+        ctr: m.ctr,
+        // GHL's deduplicated opportunity count, not Meta's raw "lead" action — same convention as getClientReport.
+        leads: stats.callsMade,
+        costPerLead: safeDivide(m.spend, stats.callsMade),
+        cac: safeDivide(m.spend, stats.closed),
+        roas: safeDivide(stats.closedRevenue, m.spend),
+      };
+    } else {
+      console.error(
+        `[metrics] Launchpad ${pipelineKey} Meta fetch failed:`,
+        metaResult.status === "rejected" ? metaResult.reason : "no data"
+      );
+      warnings.push("Couldn't load Meta Ads data.");
+    }
+  }
+
+  return {
+    period,
+    updatedAt: new Date().toISOString(),
+    warnings,
+    metrics: buildCallFunnelMetrics(stats),
+    meta,
+  };
+}
+
+/** Week-by-week version of getLaunchpadReport, for the Launchpad dashboard's trend charts. */
+export async function getLaunchpadTrends(
+  pipelineKey: string,
+  period: Period,
+  weeks: number = 4
+): Promise<WeeklyCallFunnelDataPoint[]> {
+  if (pipelineKey === "combined") {
+    const buckets = resolveTrendBuckets(period, weeks, launchpadCombinedSince);
+    const results = await Promise.allSettled(
+      launchpadPipelines.map((p) => getWeeklyCallFunnelStats(p.client, p.funnel, buckets))
+    );
+    const weeklyByPipeline = results.map((r) => (r.status === "fulfilled" ? r.value : []));
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(`[metrics] Launchpad weekly ${launchpadPipelines[i].key} fetch failed:`, r.reason);
+      }
+    });
+
+    return buckets.map((bucket) => {
+      let totals = EMPTY_CALL_FUNNEL_STATS;
+      for (const weekly of weeklyByPipeline) {
+        const w = weekly.find((x) => x.weekIndex === bucket.index);
+        if (w) totals = sumCallFunnelStats(totals, w);
+      }
+      const metrics = buildCallFunnelMetrics(totals);
+      return {
+        weekLabel: bucket.label,
+        weekStart: bucket.start.toISOString(),
+        // Calls Made isn't shown in the Combined view — see getLaunchpadReport.
+        callsMade: 0,
+        appointmentsBooked: metrics.appointmentsBooked,
+        shows: metrics.shows,
+        noShows: metrics.noShows,
+        showRate: metrics.showRate,
+        closed: metrics.closed,
+        notClosed: metrics.notClosed,
+        closeRate: metrics.closeRate,
+        closedRevenue: metrics.closedRevenue,
+      };
+    });
+  }
+
+  const view = getLaunchpadPipeline(pipelineKey);
+  if (!view) {
+    throw new Error(`Unknown Launchpad pipeline key: ${pipelineKey}`);
+  }
+  const buckets = resolveTrendBuckets(period, weeks, view.client.clientSince);
+
+  let weekly: Awaited<ReturnType<typeof getWeeklyCallFunnelStats>> = [];
+  try {
+    weekly = await getWeeklyCallFunnelStats(view.client, view.funnel, buckets);
+  } catch (err) {
+    console.error(`[metrics] Launchpad weekly ${pipelineKey} fetch failed:`, err);
+  }
+  const byWeek = new Map(weekly.map((w) => [w.weekIndex, w]));
+
+  return buckets.map((bucket) => {
+    const w = byWeek.get(bucket.index) ?? { ...EMPTY_CALL_FUNNEL_STATS, weekIndex: bucket.index };
+    const metrics = buildCallFunnelMetrics(w);
+    return {
+      weekLabel: bucket.label,
+      weekStart: bucket.start.toISOString(),
+      callsMade: w.callsMade,
+      appointmentsBooked: metrics.appointmentsBooked,
+      shows: metrics.shows,
+      noShows: metrics.noShows,
+      showRate: metrics.showRate,
+      closed: metrics.closed,
+      notClosed: metrics.notClosed,
+      closeRate: metrics.closeRate,
+      closedRevenue: metrics.closedRevenue,
     };
   });
 }

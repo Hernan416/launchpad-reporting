@@ -36,6 +36,16 @@ export default async function MasterDashboardPage() {
             </p>
           </Link>
         ))}
+        {/* Admin-only internal account — not in config/clients.ts, so it's added directly here rather than via the clients.map above. */}
+        <Link
+          href="/dashboard/launchpad-ai"
+          className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:border-[#0067eb]/40 hover:shadow-md dark:border-white/10 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
+        >
+          <p className="text-lg font-semibold text-slate-900 dark:text-white/90">Launchpad AI</p>
+          <p className="mt-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
+            View report →
+          </p>
+        </Link>
       </div>
     </DashboardShell>
   );

@@ -12,6 +12,7 @@ import type { Period } from "@/types";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ClientNav } from "@/components/ClientNav";
 import { PeriodToggle } from "@/components/PeriodToggle";
+import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { SnapshotSections } from "@/components/sections/SnapshotSections";
 import { TrendsSections } from "@/components/sections/TrendsSections";
 import { PipelineSnapshotSections } from "@/components/sections/PipelineSnapshotSections";
@@ -107,7 +108,10 @@ export default async function ClientDashboardPage({
 
     return (
       <DashboardShell title={client.name} topNav={topNav}>
-        <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
+          <ExportPdfButton slug={clientSlug} period={period} />
+        </div>
 
         <Suspense
           fallback={
@@ -149,7 +153,10 @@ export default async function ClientDashboardPage({
 
   return (
     <DashboardShell title={client.name} topNav={topNav}>
-      <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PeriodToggle slug={clientSlug} period={period} showLifetime={!!client.clientSince} />
+        <ExportPdfButton slug={clientSlug} period={period} />
+      </div>
 
       <Suspense
         fallback={
@@ -179,6 +186,7 @@ export default async function ClientDashboardPage({
           trendsPromise={trendsPromise}
           rangeHeading={rangeHeading}
           rangePhrase={rangePhrase}
+          period={period}
         />
       </Suspense>
     </DashboardShell>

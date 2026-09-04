@@ -1,7 +1,18 @@
 import type { WeeklyDataPoint } from "@/types";
+import type { StandardMonthTotals } from "@/lib/monthlyRollup";
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@/lib/format";
 
-export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
+export function WeeklyTable({
+  data,
+  totalLabel,
+  totals,
+}: {
+  data: WeeklyDataPoint[];
+  /** e.g. "Month Total" — only rendered when `totals` is also provided. */
+  totalLabel?: string;
+  /** Summed/recomputed totals row shown in bold beneath `data`'s weekly rows. */
+  totals?: StandardMonthTotals;
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1e2128]">
       <table className="w-full min-w-[900px] text-left text-sm">
@@ -43,6 +54,23 @@ export function WeeklyTable({ data }: { data: WeeklyDataPoint[] }) {
               <td className="px-4 py-3">{formatPercent(week.closeRate)}</td>
             </tr>
           ))}
+          {totals && (
+            <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900 dark:border-white/20 dark:bg-white/5 dark:text-white/90">
+              <td className="px-4 py-3">{totalLabel}</td>
+              <td className="px-4 py-3">{formatCurrency(totals.adSpend)}</td>
+              <td className="px-4 py-3">{formatNumber(totals.leads)}</td>
+              <td className="px-4 py-3">{formatNumber(totals.appointments)}</td>
+              <td className="px-4 py-3">{formatNumber(totals.shows)}</td>
+              <td className="px-4 py-3">{formatNumber(totals.quotesSent)}</td>
+              <td className="px-4 py-3">{formatNumber(totals.closed)}</td>
+              <td className="px-4 py-3 text-[#8a6d00] dark:text-[#ffcf00]">
+                {formatCurrency(totals.revenueClosed)}
+              </td>
+              <td className="px-4 py-3">{formatCurrency(totals.cac)}</td>
+              <td className="px-4 py-3">{formatMultiplier(totals.roas)}</td>
+              <td className="px-4 py-3">{formatPercent(totals.closeRate)}</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

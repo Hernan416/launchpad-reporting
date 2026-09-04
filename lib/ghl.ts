@@ -1,4 +1,4 @@
-import type { ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
+import type { CallFunnelStageConfig, ClientConfig, CustomFunnelConfig, LeadSourceCount, Period } from "@/types";
 import { bucketIndexForDate, rangeFromBuckets } from "@/lib/weeks";
 import type { WeekBucket } from "@/lib/weeks";
 import { periodToRange } from "@/lib/period";
@@ -721,6 +721,125 @@ export async function getPipelineFunnelStats(
     appointmentsCancelled: inShowsStages(config.cancelledStageNames).length,
     appointmentsLost: inShowsStages(config.lostStageNames).length,
   };
+}
+
+export interface CallFunnelStats {
+  /** Every opportunity CREATED in the pipeline during the period — one call/contact made, same "leads" convention as GhlSalesStats.leads. */
+  callsMade: number;
+  appointmentsBooked: number;
+  shows: number;
+  noShows: number;
+  closed: number;
+  notClosed: number;
+  closedRevenue: number;
+}
+
+/**
+ * Launchpad AI's own single-pipeline call-center funnel (see
+ * CallFunnelStageConfig) — no separate "quote sent" stage, so this is a
+ * simpler four-step funnel than getSalesStats: created -> booked -> shown ->
+ * closed, all via the same createdAt/lastStageChangeAt split and the same
+ * won-status closed fallback (isClosedInRange) as every other client.
+ */
+export async function getCallFunnelStats(
+  client: ClientConfig,
+  funnel: CallFunnelStageConfig,
+  period: Period
+): Promise<CallFunnelStats> {
+  const pipeline = await getPipelineByName(client, funnel.pipelineName);
+  const { startTime, endTime } = periodToRange(period, client);
+  const floor = pipelineFetchFloor(client);
+  const allOpportunities = await fetchAllPipelineOpportunities(client, pipeline.id, floor, endTime);
+
+  const callOpportunities = allOpportunities.filter((o) => isWithinRange(o.createdAt, startTime, endTime));
+  const updatedOpportunities = allOpportunities.filter((o) =>
+    isWithinRange(o.lastStageChangeAt, startTime, endTime)
+  );
+  const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
+  const inStages = (names: string[]) => filterByStageNames(updatedOpportunities, stageNameById, names);
+
+  const closedSet = new Set(funnel.closedStageNames);
+  // Full fetch, not just updatedOpportunities — a won-but-stuck-in-an-earlier-
+  // stage opportunity needs it, same reasoning as getSalesStats. See isClosedInRange.
+  const closedOpportunities = allOpportunities.filter((o) =>
+    isClosedInRange(o, stageNameById, closedSet, startTime, endTime)
+  );
+
+  return {
+    callsMade: callOpportunities.length,
+    appointmentsBooked: inStages(funnel.bookedStageNames).length,
+    shows: inStages(funnel.showStageNames).length,
+    noShows: inStages(funnel.noShowStageNames).length,
+    closed: closedOpportunities.length,
+    notClosed: inStages(funnel.notClosedStageNames).length,
+    closedRevenue: closedOpportunities.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0),
+  };
+}
+
+export interface WeeklyCallFunnelStats {
+  weekIndex: number;
+  callsMade: number;
+  appointmentsBooked: number;
+  shows: number;
+  noShows: number;
+  closed: number;
+  notClosed: number;
+  closedRevenue: number;
+}
+
+/** Week-by-week version of getCallFunnelStats, for the Launchpad dashboard's trend charts. */
+export async function getWeeklyCallFunnelStats(
+  client: ClientConfig,
+  funnel: CallFunnelStageConfig,
+  buckets: WeekBucket[]
+): Promise<WeeklyCallFunnelStats[]> {
+  const pipeline = await getPipelineByName(client, funnel.pipelineName);
+  const { endTime } = rangeFromBuckets(buckets);
+  const floor = pipelineFetchFloor(client);
+  const allOpportunities = await fetchAllPipelineOpportunities(client, pipeline.id, floor, endTime);
+  const stageNameById = new Map(pipeline.stages.map((s) => [s.id, s.name]));
+
+  const bookedSet = new Set(funnel.bookedStageNames);
+  const showSet = new Set(funnel.showStageNames);
+  const noShowSet = new Set(funnel.noShowStageNames);
+  const notClosedSet = new Set(funnel.notClosedStageNames);
+  const closedSet = new Set(funnel.closedStageNames);
+
+  const result: WeeklyCallFunnelStats[] = buckets.map((b) => ({
+    weekIndex: b.index,
+    callsMade: 0,
+    appointmentsBooked: 0,
+    shows: 0,
+    noShows: 0,
+    closed: 0,
+    notClosed: 0,
+    closedRevenue: 0,
+  }));
+
+  for (const opp of allOpportunities) {
+    const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
+    if (createdIdx !== null) result[createdIdx].callsMade += 1;
+
+    const stageIdx = opp.lastStageChangeAt
+      ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
+      : null;
+    if (stageIdx !== null) {
+      const stageName = stageNameById.get(opp.pipelineStageId) ?? "";
+      if (bookedSet.has(stageName)) result[stageIdx].appointmentsBooked += 1;
+      if (showSet.has(stageName)) result[stageIdx].shows += 1;
+      if (noShowSet.has(stageName)) result[stageIdx].noShows += 1;
+      if (notClosedSet.has(stageName)) result[stageIdx].notClosed += 1;
+    }
+
+    // Independent of stageIdx above — see closedBucketIndex.
+    const closedIdx = closedBucketIndex(opp, stageNameById, closedSet, buckets);
+    if (closedIdx !== null) {
+      result[closedIdx].closed += 1;
+      result[closedIdx].closedRevenue += opp.monetaryValue ?? 0;
+    }
+  }
+
+  return result;
 }
 
 export interface WeeklyPipelineFunnelStats {

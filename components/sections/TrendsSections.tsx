@@ -1,4 +1,5 @@
-import type { WeeklyDataPoint } from "@/types";
+import type { Period, WeeklyDataPoint } from "@/types";
+import { groupWeeksByMonth, summarizeStandardMonth } from "@/lib/monthlyRollup";
 import { ChartCard } from "@/components/ChartCard";
 import { WeeklyTable } from "@/components/WeeklyTable";
 import { AdSpendRevenueChart } from "@/components/charts/AdSpendRevenueChart";
@@ -27,14 +28,18 @@ export async function TrendsSections({
   trendsPromise,
   rangeHeading,
   rangePhrase,
+  period,
 }: {
   trendsPromise: Promise<WeeklyDataPoint[]>;
   /** e.g. "Last 4 Weeks" or "Since Apr 4, 2026" (lifetime view) — see app/dashboard/[clientSlug]/page.tsx. */
   rangeHeading: string;
   /** Lowercase phrase form of rangeHeading, e.g. "the last 4 weeks" or "since Apr 4, 2026". */
   rangePhrase: string;
+  /** Lifetime spans many months with identical "Mon d" week labels across years (e.g. "Mar 7" in both 2025 and 2026) — split the table by month so rows stay unambiguous. 7d/month views are short enough to stay flat. */
+  period: Period;
 }) {
   const trends = await trendsPromise;
+  const monthGroups = period === "lifetime" ? groupWeeksByMonth(trends) : null;
 
   return (
     <div className="space-y-8">
@@ -42,7 +47,24 @@ export async function TrendsSections({
         <h2 className="mb-3 border-l-4 border-slate-400 pl-3 text-lg font-semibold text-slate-900 dark:border-white/20 dark:text-white/90">
           Weekly Detail — {rangeHeading}
         </h2>
-        <WeeklyTable data={trends} />
+        {monthGroups ? (
+          <div className="space-y-6">
+            {monthGroups.map((group) => (
+              <div key={group.monthLabel}>
+                <h3 className="mb-2 text-sm font-semibold text-slate-600 dark:text-white/60">
+                  {group.monthLabel}
+                </h3>
+                <WeeklyTable
+                  data={group.weeks}
+                  totalLabel="Month Total"
+                  totals={summarizeStandardMonth(group.weeks)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <WeeklyTable data={trends} />
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

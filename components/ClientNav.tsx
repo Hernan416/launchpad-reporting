@@ -24,6 +24,18 @@ export function ClientNav({ currentSlug }: { currentSlug: string }) {
           {client.name}
         </Link>
       ))}
+      <span className="text-slate-300 dark:text-white/20">|</span>
+      {/* Admin-only internal account — not in config/clients.ts, so it's rendered here directly rather than via the clients.map above. See config/launchpad.ts and proxy.ts for why a "client" role user can never reach it. */}
+      <Link
+        href="/dashboard/launchpad-ai"
+        className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+          currentSlug === "launchpad-ai"
+            ? "bg-[#0067eb] text-white"
+            : "text-slate-600 hover:bg-slate-100 hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
+        }`}
+      >
+        Launchpad AI
+      </Link>
     </div>
   );
 }

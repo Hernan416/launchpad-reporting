@@ -5,11 +5,14 @@ export function PeriodToggle({
   slug,
   period,
   showLifetime = false,
+  extraQuery = "",
 }: {
   slug: string;
   period: Period;
   /** Only shown once a client has a clientSince date configured (see ClientConfig.clientSince) — otherwise there's no real anchor for "lifetime". */
   showLifetime?: boolean;
+  /** Extra query string to preserve across period changes, e.g. "&pipeline=combined" for the Launchpad dashboard's pipeline toggle. Must start with "&". */
+  extraQuery?: string;
 }) {
   const options: { value: Period; label: string }[] = [
     { value: "7d", label: "Last 7 days" },
@@ -24,7 +27,7 @@ export function PeriodToggle({
         return (
           <Link
             key={option.value}
-            href={`/dashboard/${slug}?period=${option.value}`}
+            href={`/dashboard/${slug}?period=${option.value}${extraQuery}`}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
                 ? "bg-[#0067eb] text-white"
