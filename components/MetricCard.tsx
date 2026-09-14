@@ -4,10 +4,12 @@ export function MetricCard({
   label,
   value,
   accent = "blue",
+  sublabel,
 }: {
   label: string;
   value: string;
   accent?: Accent;
+  sublabel?: string;
 }) {
   const classes = ACCENT_CLASSES[accent];
 
@@ -18,6 +20,7 @@ export function MetricCard({
         {label}
       </p>
       <p className={`mt-1.5 text-2xl font-semibold tracking-tight tabular-nums ${classes.text}`}>{value}</p>
+      {sublabel && <p className="mt-1 text-xs text-slate-400 dark:text-white/35">{sublabel}</p>}
     </div>
   );
 }

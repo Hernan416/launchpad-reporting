@@ -70,6 +70,8 @@ interface Opportunity {
   createdAt?: string;
   source?: string;
   contactId?: string;
+  /** GHL's /opportunities/search response embeds the linked contact inline (tags included) — used for the Launchpad self-booked-tag check, no extra fetch needed. */
+  contact?: { tags?: string[] };
 }
 
 interface OpportunitiesSearchResponse {
@@ -742,6 +744,8 @@ export interface CallFunnelStats {
   closed: number;
   notClosed: number;
   closedRevenue: number;
+  /** Leads tagged with funnel.selfBookedTag — 0 when that field isn't configured. */
+  selfBooked: number;
 }
 
 /**
@@ -776,6 +780,12 @@ export async function getCallFunnelStats(
     isClosedInRange(o, stageNameById, closedSet, startTime, endTime)
   );
 
+  const selfBooked = funnel.selfBookedTag
+    ? callOpportunities.filter((o) =>
+        (o.contact?.tags ?? []).some((t) => t.toLowerCase() === funnel.selfBookedTag!.toLowerCase())
+      ).length
+    : 0;
+
   return {
     callsMade: callOpportunities.length,
     appointmentsBooked: inStages(funnel.bookedStageNames).length,
@@ -784,6 +794,7 @@ export async function getCallFunnelStats(
     closed: closedOpportunities.length,
     notClosed: inStages(funnel.notClosedStageNames).length,
     closedRevenue: closedOpportunities.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0),
+    selfBooked,
   };
 }
 

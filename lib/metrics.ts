@@ -406,9 +406,12 @@ const EMPTY_CALL_FUNNEL_STATS: CallFunnelStats = {
   closed: 0,
   notClosed: 0,
   closedRevenue: 0,
+  selfBooked: 0,
 };
 
-function buildCallFunnelMetrics(stats: CallFunnelStats) {
+/** Weekly stats have no selfBooked field (that's a snapshot-only metric, see CallFunnelSnapshotSections) — defaults to 0 there. */
+function buildCallFunnelMetrics(stats: Omit<CallFunnelStats, "selfBooked"> & { selfBooked?: number }) {
+  const selfBooked = stats.selfBooked ?? 0;
   return {
     callsMade: stats.callsMade,
     appointmentsBooked: stats.appointmentsBooked,
@@ -419,10 +422,16 @@ function buildCallFunnelMetrics(stats: CallFunnelStats) {
     notClosed: stats.notClosed,
     closeRate: safeDivide(stats.closed, stats.shows),
     closedRevenue: stats.closedRevenue,
+    selfBooked,
+    selfBookedRate: safeDivide(selfBooked, stats.callsMade),
   };
 }
 
-function sumCallFunnelStats(a: CallFunnelStats, b: CallFunnelStats): CallFunnelStats {
+/** b may be a weekly stats row (no selfBooked field, see WeeklyCallFunnelStats) — defaults to 0 there. */
+function sumCallFunnelStats(
+  a: CallFunnelStats,
+  b: Omit<CallFunnelStats, "selfBooked"> & { selfBooked?: number }
+): CallFunnelStats {
   return {
     callsMade: a.callsMade + b.callsMade,
     appointmentsBooked: a.appointmentsBooked + b.appointmentsBooked,
@@ -431,6 +440,7 @@ function sumCallFunnelStats(a: CallFunnelStats, b: CallFunnelStats): CallFunnelS
     closed: a.closed + b.closed,
     notClosed: a.notClosed + b.notClosed,
     closedRevenue: a.closedRevenue + b.closedRevenue,
+    selfBooked: a.selfBooked + (b.selfBooked ?? 0),
   };
 }
 

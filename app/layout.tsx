@@ -40,7 +40,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* suppressHydrationWarning here too: some antivirus/security browser
+          extensions (e.g. the one at chrome-extension://eppiocemhmnlbhjplcgkofciiegomcon/
+          seen in this project's dev logs) inject bis_skin_checked/bis_register
+          attributes onto <body> before React hydrates, which otherwise logs a
+          harmless-but-noisy hydration mismatch warning in dev. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

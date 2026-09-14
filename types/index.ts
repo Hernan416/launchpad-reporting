@@ -213,6 +213,8 @@ export interface CallFunnelStageConfig {
   closedStageNames: string[];
   /** Showed up but didn't close — the equivalent of "Quote Rejected" at the roofing clients. */
   notClosedStageNames: string[];
+  /** Contact tag marking a lead who booked their own appointment (e.g. via the "Launchpad Strategy Session" calendar) without a rep involved — only set for the ads-driven pipeline. */
+  selfBookedTag?: string;
 }
 
 export interface CallPipelineViewConfig {
@@ -237,6 +239,10 @@ export interface CallFunnelMetrics {
   notClosed: number;
   closeRate: number;
   closedRevenue: number;
+  /** Leads tagged "self-booked" (booked their own appointment, no rep involved) — 0 when the pipeline has no selfBookedTag configured. */
+  selfBooked: number;
+  /** selfBooked ÷ callsMade. */
+  selfBookedRate: number;
 }
 
 export interface CallFunnelReport {

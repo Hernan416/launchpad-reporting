@@ -44,6 +44,10 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
     },
     funnel: {
       pipelineName: "Roofing Ads 2026",
+      // Confirmed with the user 2026-09-14: leads who book their own
+      // appointment (via the "Launchpad Strategy Session" calendar) get this
+      // contact tag — verified against real data, exactly 2 tagged today.
+      selfBookedTag: "self-booked",
       bookedStageNames: [
         "Booked",
         "Needs Reschedule",

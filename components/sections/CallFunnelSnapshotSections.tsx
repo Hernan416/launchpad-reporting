@@ -83,6 +83,12 @@ export async function CallFunnelSnapshotSections({
             label={view.entryLabel === "Leads" ? "Cost per lead" : `Cost per ${view.entryLabel.toLowerCase()}`}
             value={formatCurrency(report.meta.costPerLead)}
           />
+          <MetricCard
+            accent="blue"
+            label="Self-Booked Rate"
+            value={formatPercent(report.metrics.selfBookedRate)}
+            sublabel={`${formatNumber(report.metrics.selfBooked)}/${formatNumber(report.meta.leads)} leads`}
+          />
         </MetricGroup>
       )}
 
