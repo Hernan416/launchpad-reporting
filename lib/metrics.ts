@@ -407,11 +407,23 @@ const EMPTY_CALL_FUNNEL_STATS: CallFunnelStats = {
   notClosed: 0,
   closedRevenue: 0,
   selfBooked: 0,
+  disqualified: 0,
+  totalLeadsEver: 0,
+  lostReasons: [],
 };
 
-/** Weekly stats have no selfBooked field (that's a snapshot-only metric, see CallFunnelSnapshotSections) — defaults to 0 there. */
-function buildCallFunnelMetrics(stats: Omit<CallFunnelStats, "selfBooked"> & { selfBooked?: number }) {
+type WeeklyLikeCallFunnelStats = Omit<
+  CallFunnelStats,
+  "selfBooked" | "disqualified" | "totalLeadsEver" | "lostReasons"
+> & {
+  selfBooked?: number;
+  disqualified?: number;
+};
+
+/** Weekly stats have no selfBooked/disqualified fields (snapshot-only metrics, see CallFunnelSnapshotSections) — default to 0 there. */
+function buildCallFunnelMetrics(stats: WeeklyLikeCallFunnelStats) {
   const selfBooked = stats.selfBooked ?? 0;
+  const disqualified = stats.disqualified ?? 0;
   return {
     callsMade: stats.callsMade,
     appointmentsBooked: stats.appointmentsBooked,
@@ -424,14 +436,13 @@ function buildCallFunnelMetrics(stats: Omit<CallFunnelStats, "selfBooked"> & { s
     closedRevenue: stats.closedRevenue,
     selfBooked,
     selfBookedRate: safeDivide(selfBooked, stats.callsMade),
+    disqualified,
+    disqualifiedRate: safeDivide(disqualified, stats.callsMade),
   };
 }
 
-/** b may be a weekly stats row (no selfBooked field, see WeeklyCallFunnelStats) — defaults to 0 there. */
-function sumCallFunnelStats(
-  a: CallFunnelStats,
-  b: Omit<CallFunnelStats, "selfBooked"> & { selfBooked?: number }
-): CallFunnelStats {
+/** b may be a weekly stats row (no selfBooked/disqualified fields, see WeeklyCallFunnelStats) — defaults to 0 there. */
+function sumCallFunnelStats(a: CallFunnelStats, b: WeeklyLikeCallFunnelStats): CallFunnelStats {
   return {
     callsMade: a.callsMade + b.callsMade,
     appointmentsBooked: a.appointmentsBooked + b.appointmentsBooked,
@@ -441,6 +452,10 @@ function sumCallFunnelStats(
     notClosed: a.notClosed + b.notClosed,
     closedRevenue: a.closedRevenue + b.closedRevenue,
     selfBooked: a.selfBooked + (b.selfBooked ?? 0),
+    disqualified: a.disqualified + (b.disqualified ?? 0),
+    // TEST / EASILY REMOVABLE — not merged across pipelines (Combined never builds a lostReasons breakdown, see getLaunchpadReport).
+    totalLeadsEver: a.totalLeadsEver,
+    lostReasons: a.lostReasons,
   };
 }
 
@@ -464,19 +479,60 @@ export async function getLaunchpadReport(
       launchpadPipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period, customRange))
     );
     let totals = EMPTY_CALL_FUNNEL_STATS;
+    const fulfilledStats: CallFunnelStats[] = [];
     results.forEach((r, i) => {
       if (r.status === "fulfilled") {
         totals = sumCallFunnelStats(totals, r.value);
+        fulfilledStats.push(r.value);
       } else {
         console.error(`[metrics] Launchpad ${launchpadPipelines[i].key} fetch failed:`, r.reason);
         warnings.push(`Couldn't load ${launchpadPipelines[i].name} from GHL.`);
       }
     });
+
+    // TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons and
+    // components/sections/LostReasonsBreakdown.tsx. Unlike the single-
+    // pipeline branch, Combined merges both pipelines' buckets by label
+    // (summed) — most labels exist in both configs (Disqualified, Territory
+    // Taken, Long Term Nurture), a few don't (Invalid Lead/Unreachable are
+    // ads-only, Dead Lead is cold-call-only), which is fine: a label with no
+    // data from a given pipeline just contributes 0 to that sum.
+    const leadsSoFar = fulfilledStats.reduce((sum, s) => sum + s.totalLeadsEver, 0);
+    const descriptionByLabel = new Map<string, string>();
+    for (const p of launchpadPipelines) {
+      for (const reason of p.funnel.lostReasons ?? []) {
+        if (!descriptionByLabel.has(reason.label)) descriptionByLabel.set(reason.label, reason.description);
+      }
+    }
+    const mergedByLabel = new Map<string, { total: number; createdThisPeriod: number; createdBeforePeriod: number }>();
+    for (const s of fulfilledStats) {
+      for (const r of s.lostReasons) {
+        const existing = mergedByLabel.get(r.label) ?? { total: 0, createdThisPeriod: 0, createdBeforePeriod: 0 };
+        mergedByLabel.set(r.label, {
+          total: existing.total + r.total,
+          createdThisPeriod: existing.createdThisPeriod + r.createdThisPeriod,
+          createdBeforePeriod: existing.createdBeforePeriod + r.createdBeforePeriod,
+        });
+      }
+    }
+    const lostReasons = [...mergedByLabel.entries()].map(([label, data]) => ({
+      label,
+      description: descriptionByLabel.get(label) ?? "",
+      totalCount: data.total,
+      totalPct: safeDivide(data.total, leadsSoFar),
+      createdBeforePeriodCount: data.createdBeforePeriod,
+      createdBeforePeriodPct: safeDivide(data.createdBeforePeriod, leadsSoFar),
+      createdThisPeriodCount: data.createdThisPeriod,
+      createdThisPeriodPct: safeDivide(data.createdThisPeriod, leadsSoFar),
+    }));
+
     return {
       period,
       updatedAt: new Date().toISOString(),
       warnings,
       metrics: buildCallFunnelMetrics(totals),
+      lostReasons,
+      leadsSoFar,
     };
   }
 
@@ -532,12 +588,39 @@ export async function getLaunchpadReport(
     }
   }
 
+  // TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons and
+  // components/sections/LostReasonsBreakdown.tsx. Only built for a single
+  // pipeline (never Combined) and only when that pipeline configures it. All
+  // percentages share stats.totalLeadsEver as their denominator (every lead
+  // the pipeline has ever taken in, not just this period's Calls Made) — see
+  // LostReasonBreakdown's doc comment for why.
+  const leadsSoFar = stats.totalLeadsEver;
+  const lostReasons = view.funnel.lostReasons?.map((reasonConfig) => {
+    const data = stats.lostReasons.find((r) => r.label === reasonConfig.label) ?? {
+      total: 0,
+      createdThisPeriod: 0,
+      createdBeforePeriod: 0,
+    };
+    return {
+      label: reasonConfig.label,
+      description: reasonConfig.description,
+      totalCount: data.total,
+      totalPct: safeDivide(data.total, leadsSoFar),
+      createdBeforePeriodCount: data.createdBeforePeriod,
+      createdBeforePeriodPct: safeDivide(data.createdBeforePeriod, leadsSoFar),
+      createdThisPeriodCount: data.createdThisPeriod,
+      createdThisPeriodPct: safeDivide(data.createdThisPeriod, leadsSoFar),
+    };
+  });
+
   return {
     period,
     updatedAt: new Date().toISOString(),
     warnings,
     metrics: buildCallFunnelMetrics(stats),
     meta,
+    lostReasons,
+    leadsSoFar,
   };
 }
 

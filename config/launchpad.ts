@@ -48,6 +48,37 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
       // appointment (via the "Launchpad Strategy Session" calendar) get this
       // contact tag — verified against real data, exactly 2 tagged today.
       selfBookedTag: "self-booked",
+      // Confirmed with the user 2026-09-14: "Application Disqualified" (added
+      // to this pipeline ~2026-09-06) is a separate, earlier disqualification
+      // point from "Disqualified" — both count toward Disqualified Rate.
+      disqualifiedStageNames: ["Application Disqualified", "Disqualified"],
+      lostReasons: [
+        {
+          label: "Disqualified",
+          description: "Didn't meet basic criteria — disqualified before or after contact.",
+          stageNames: ["Application Disqualified", "Disqualified"],
+        },
+        {
+          label: "Invalid Lead",
+          description: "Bad contact info — fake number, duplicate, or unreachable data.",
+          stageNames: ["Invalid Lead"],
+        },
+        {
+          label: "Territory Taken",
+          description: "Outside the serviceable area, or already claimed by another rep.",
+          stageNames: ["Territory Taken"],
+        },
+        {
+          label: "Unreachable",
+          description: "Never got the lead on the phone after repeated attempts.",
+          stageNames: ["Unreachable"],
+        },
+        {
+          label: "Long Term Nurture",
+          description: "Not ready to buy yet — parked for future follow-up.",
+          stageNames: ["Long Term Nurture"],
+        },
+      ],
       bookedStageNames: [
         "Booked",
         "Needs Reschedule",
@@ -80,6 +111,29 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
     },
     funnel: {
       pipelineName: "Cold Call Sales",
+      disqualifiedStageNames: ["Disqualified"],
+      lostReasons: [
+        {
+          label: "Disqualified",
+          description: "Didn't meet basic criteria for the offer.",
+          stageNames: ["Disqualified"],
+        },
+        {
+          label: "Dead Lead",
+          description: "No longer viable — unresponsive or explicitly not interested.",
+          stageNames: ["Dead lead"],
+        },
+        {
+          label: "Territory Taken",
+          description: "Outside the serviceable area, or already claimed by another rep.",
+          stageNames: ["Territory Taken"],
+        },
+        {
+          label: "Long Term Nurture",
+          description: "Not ready to buy yet — parked for future follow-up.",
+          stageNames: ["Long Term Nurture"],
+        },
+      ],
       bookedStageNames: [
         "Booked",
         "Confirmed",

@@ -215,6 +215,17 @@ export interface CallFunnelStageConfig {
   notClosedStageNames: string[];
   /** Contact tag marking a lead who booked their own appointment (e.g. via the "Launchpad Strategy Session" calendar) without a rep involved — only set for the ads-driven pipeline. */
   selfBookedTag?: string;
+  /** Stages counted toward Disqualified Rate (e.g. "Application Disqualified" + "Disqualified" — two different disqualification points in the Roofing Ads 2026 funnel). */
+  disqualifiedStageNames?: string[];
+  /**
+   * TEST / EASILY REMOVABLE — see components/sections/LostReasonsBreakdown.tsx.
+   * "Why didn't this lead close" buckets, current-stage snapshot within the
+   * period, shown as a standalone card group with a hover explanation per
+   * card. To rip this feature out: delete LostReasonsBreakdown.tsx, its
+   * import + JSX block in CallFunnelSnapshotSections.tsx, this field, and
+   * CallFunnelReport.lostReasons — nothing else depends on it.
+   */
+  lostReasons?: { label: string; description: string; stageNames: string[] }[];
 }
 
 export interface CallPipelineViewConfig {
@@ -243,6 +254,35 @@ export interface CallFunnelMetrics {
   selfBooked: number;
   /** selfBooked ÷ callsMade. */
   selfBookedRate: number;
+  /** Disqualified (any disqualifiedStageNames stage) — 0 when not configured. */
+  disqualified: number;
+  /** disqualified ÷ callsMade. */
+  disqualifiedRate: number;
+}
+
+/**
+ * TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons and
+ * components/sections/LostReasonsBreakdown.tsx. All percentages share the
+ * same denominator — CallFunnelReport.leadsSoFar, every lead the pipeline
+ * has ever taken in, independent of the selected period — so a lead created
+ * last month that only just turned into e.g. a Dead Lead this period still
+ * shows up honestly, split by when it was created vs when it resolved
+ * (confirmed with the user 2026-09-14: this is exactly the "19 dead leads
+ * but only 17 calls this month" confusion — most of those 19 were created
+ * in an earlier period).
+ */
+export interface LostReasonBreakdown {
+  label: string;
+  description: string;
+  /** Reached this stage during the selected period, regardless of when created. */
+  totalCount: number;
+  totalPct: number;
+  /** Of totalCount, created before the selected period started. */
+  createdBeforePeriodCount: number;
+  createdBeforePeriodPct: number;
+  /** Of totalCount, also created during the selected period. */
+  createdThisPeriodCount: number;
+  createdThisPeriodPct: number;
 }
 
 export interface CallFunnelReport {
@@ -252,6 +292,10 @@ export interface CallFunnelReport {
   metrics: CallFunnelMetrics;
   /** Absent for the Combined view (per the user 2026-09-04: no blended ad spend/CAC/ROAS, and Calls Made isn't shown there either — see components/sections/CallFunnelSnapshotSections.tsx). */
   meta?: MetaMetrics & { cac: number; roas: number };
+  /** TEST / EASILY REMOVABLE — absent for the Combined view (taxonomies differ per pipeline) and for any pipeline with no lostReasons configured. */
+  lostReasons?: LostReasonBreakdown[];
+  /** TEST / EASILY REMOVABLE — total opportunities ever created in this pipeline, independent of the selected period. The "100%" denominator for lostReasons' percentages — see LostReasonBreakdown. */
+  leadsSoFar?: number;
 }
 
 export interface WeeklyCallFunnelDataPoint {

@@ -4,6 +4,10 @@ import { MetricGroup } from "@/components/MetricGroup";
 import { MetricCard } from "@/components/MetricCard";
 import { HeadlineCard } from "@/components/HeadlineCard";
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@/lib/format";
+// TEST / EASILY REMOVABLE — delete this import + the JSX block below that uses
+// it to pull this feature back out. See LostReasonsBreakdown.tsx and
+// CallFunnelStageConfig.lostReasons for the rest of the wiring.
+import { LostReasonsBreakdown } from "@/components/sections/LostReasonsBreakdown";
 
 /**
  * Cards-only slice of the Launchpad AI dashboard. The Combined view
@@ -109,7 +113,18 @@ export async function CallFunnelSnapshotSections({
         <MetricCard accent="gold" label="No-Shows" value={formatNumber(report.metrics.noShows)} />
         <MetricCard accent="gold" label="Not Closed" value={formatNumber(report.metrics.notClosed)} />
         <MetricCard accent="gold" label="Closed" value={formatNumber(report.metrics.closed)} />
+        <MetricCard
+          accent="gold"
+          label="Disqualified Rate"
+          value={formatPercent(report.metrics.disqualifiedRate)}
+          sublabel={`${formatNumber(report.metrics.disqualified)} disqualified`}
+        />
       </MetricGroup>
+
+      {/* TEST / EASILY REMOVABLE — delete this block + the import above to pull it back out. */}
+      {report.lostReasons && report.leadsSoFar !== undefined && (
+        <LostReasonsBreakdown leadsSoFar={report.leadsSoFar} reasons={report.lostReasons} />
+      )}
     </div>
   );
 }

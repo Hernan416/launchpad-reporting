@@ -746,6 +746,20 @@ export interface CallFunnelStats {
   closedRevenue: number;
   /** Leads tagged with funnel.selfBookedTag — 0 when that field isn't configured. */
   selfBooked: number;
+  /** Disqualified (funnel.disqualifiedStageNames) — 0 when not configured. */
+  disqualified: number;
+  /** TEST / EASILY REMOVABLE — total opportunities ever created in this pipeline (not period-scoped) — the fetch already spans floor..endTime and endTime is never before "now" for any period, see getCallFunnelStats. */
+  totalLeadsEver: number;
+  /** TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons. */
+  lostReasons: {
+    label: string;
+    /** Reached this stage during the period (lastStageChangeAt), regardless of when created. */
+    total: number;
+    /** Of total, also created during the period. */
+    createdThisPeriod: number;
+    /** Of total, created before the period started. */
+    createdBeforePeriod: number;
+  }[];
 }
 
 /**
@@ -786,6 +800,25 @@ export async function getCallFunnelStats(
       ).length
     : 0;
 
+  const disqualified = funnel.disqualifiedStageNames
+    ? inStages(funnel.disqualifiedStageNames).length
+    : 0;
+
+  // TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons. Split by
+  // createdAt vs the period boundary so the UI can say e.g. "these came in
+  // before this period, these came in during it" instead of one confusing
+  // total (see the 2026-09-14 "19 dead leads but only 17 calls" question).
+  const lostReasons = (funnel.lostReasons ?? []).map((reason) => {
+    const reached = inStages(reason.stageNames);
+    const createdThisPeriod = reached.filter((o) => isWithinRange(o.createdAt, startTime, endTime)).length;
+    return {
+      label: reason.label,
+      total: reached.length,
+      createdThisPeriod,
+      createdBeforePeriod: reached.length - createdThisPeriod,
+    };
+  });
+
   return {
     callsMade: callOpportunities.length,
     appointmentsBooked: inStages(funnel.bookedStageNames).length,
@@ -795,6 +828,9 @@ export async function getCallFunnelStats(
     notClosed: inStages(funnel.notClosedStageNames).length,
     closedRevenue: closedOpportunities.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0),
     selfBooked,
+    disqualified,
+    totalLeadsEver: allOpportunities.length,
+    lostReasons,
   };
 }
 
