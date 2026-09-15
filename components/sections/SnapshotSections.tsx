@@ -3,6 +3,11 @@ import { HeadlineCard } from "@/components/HeadlineCard";
 import { MetricGroup } from "@/components/MetricGroup";
 import { MetricCard } from "@/components/MetricCard";
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@/lib/format";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
+// TEST / EASILY REMOVABLE — delete this import + the JSX block below that uses
+// it to pull this feature back out. See LostReasonsBreakdown.tsx and
+// ClientConfig.lostReasons for the rest of the wiring.
+import { LostReasonsBreakdown } from "@/components/sections/LostReasonsBreakdown";
 
 /**
  * Cards-only slice of the standard dashboard — the fast, snapshot half of
@@ -122,7 +127,26 @@ export async function SnapshotSections({
         />
         <MetricCard accent="blue" label="Closed" value={formatNumber(report.sales.closed)} />
         <MetricCard accent="blue" label="CAC" value={formatCurrency(report.sales.cac)} />
+        <MetricCard
+          accent="blue"
+          label="Self-Booked Rate"
+          value={formatPercent(report.sales.selfBookedRate)}
+          sublabel={`${formatNumber(report.sales.selfBooked)}/${formatNumber(report.meta.leads)} leads`}
+        />
+        <MetricCard
+          accent="blue"
+          label="Disqualified Rate"
+          value={formatPercent(report.sales.disqualifiedRate)}
+          sublabel={`${formatNumber(report.sales.disqualified)} disqualified`}
+        />
       </MetricGroup>
+
+      {/* TEST / EASILY REMOVABLE — delete this block + the import above to pull it back out. */}
+      {report.lostReasons && report.leadsSoFar !== undefined && (
+        <CollapsibleSection title="Why It Didn't Close (test)">
+          <LostReasonsBreakdown leadsSoFar={report.leadsSoFar} reasons={report.lostReasons} />
+        </CollapsibleSection>
+      )}
     </div>
   );
 }

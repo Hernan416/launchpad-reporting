@@ -17,6 +17,7 @@ import {
   getCallFunnelStats,
   getPipelineFunnelStats,
   getSalesStats,
+  getSelfBookedCount,
   getWeeklyAppointmentStats,
   getWeeklyCallFunnelStats,
   getWeeklyPipelineFunnelStats,
@@ -90,7 +91,7 @@ export async function getClientReport(
   const warnings: string[] = [];
 
   // Independent sources — fetched concurrently, not one-after-another.
-  const [metaResult, apptResult, salesResult] = await Promise.allSettled([
+  const [metaResult, apptResult, salesResult, selfBookedResult] = await Promise.allSettled([
     getMetaInsights(
       client.metaAdAccountId,
       period,
@@ -101,6 +102,7 @@ export async function getClientReport(
     ),
     getAppointmentStats(client, period, customRange),
     getSalesStats(client, period, customRange),
+    getSelfBookedCount(client, period, customRange),
   ]);
 
   let meta = EMPTY_META;
@@ -132,15 +134,46 @@ export async function getClientReport(
   let quotesSentRevenue = 0;
   let closed = 0;
   let closedRevenue = 0;
+  let disqualified = 0;
+  let leadsSoFar = 0;
+  let lostReasons: ClientReport["lostReasons"];
   if (salesResult.status === "fulfilled") {
     leads = salesResult.value.leads;
     quotesSent = salesResult.value.quotesSent;
     quotesSentRevenue = salesResult.value.quotesSentRevenue;
     closed = salesResult.value.closed;
     closedRevenue = salesResult.value.closedRevenue;
+    disqualified = salesResult.value.disqualified;
+    leadsSoFar = salesResult.value.totalLeadsEver;
+    // TEST / EASILY REMOVABLE — see ClientConfig.lostReasons and
+    // components/sections/LostReasonsBreakdown.tsx.
+    lostReasons = client.lostReasons?.map((reasonConfig) => {
+      const data = salesResult.value.lostReasons.find((r) => r.label === reasonConfig.label) ?? {
+        total: 0,
+        createdThisPeriod: 0,
+        createdBeforePeriod: 0,
+      };
+      return {
+        label: reasonConfig.label,
+        description: reasonConfig.description,
+        totalCount: data.total,
+        totalPct: safeDivide(data.total, leadsSoFar),
+        createdBeforePeriodCount: data.createdBeforePeriod,
+        createdBeforePeriodPct: safeDivide(data.createdBeforePeriod, leadsSoFar),
+        createdThisPeriodCount: data.createdThisPeriod,
+        createdThisPeriodPct: safeDivide(data.createdThisPeriod, leadsSoFar),
+      };
+    });
   } else {
     console.error(`[metrics] GHL sales fetch failed for ${slug}:`, salesResult.reason);
     warnings.push("Couldn't load sales opportunities from GHL.");
+  }
+
+  let selfBooked = 0;
+  if (selfBookedResult.status === "fulfilled") {
+    selfBooked = selfBookedResult.value;
+  } else {
+    console.error(`[metrics] GHL self-booked fetch failed for ${slug}:`, selfBookedResult.reason);
   }
 
   return {
@@ -180,7 +213,13 @@ export async function getClientReport(
       quotesSent,
       closed,
       cac: safeDivide(meta.spend, closed),
+      selfBooked,
+      selfBookedRate: safeDivide(selfBooked, leads),
+      disqualified,
+      disqualifiedRate: safeDivide(disqualified, leads),
     },
+    lostReasons,
+    leadsSoFar,
   };
 }
 

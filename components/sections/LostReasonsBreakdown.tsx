@@ -2,13 +2,17 @@ import type { LostReasonBreakdown } from "@/types";
 import { formatNumber, formatPercent } from "@/lib/format";
 
 /**
- * TEST — a quick look at how a "why didn't this lead close" breakdown reads
- * on the Launchpad dashboard. Deliberately self-contained (no shared
- * MetricCard/MetricGroup, its own markup) so it can be deleted in one shot:
- * remove this file, remove the import + JSX block in
- * CallFunnelSnapshotSections.tsx, and (optionally) the `lostReasons`/
- * `leadsSoFar` fields on CallFunnelStageConfig / CallFunnelReport. Nothing
- * else references it.
+ * TEST — a quick look at how a "why didn't this lead close" breakdown reads.
+ * Used on both the Launchpad dashboard and every standard client dashboard
+ * (all except Excel Roofing, per the user 2026-09-15) — same component, same
+ * shared `LostReasonBreakdown` type either way, wrapped in a
+ * `CollapsibleSection` by its caller (SnapshotSections.tsx /
+ * CallFunnelSnapshotSections.tsx), which supplies the "Why It Didn't Close"
+ * title. Deliberately self-contained otherwise (no shared MetricCard/
+ * MetricGroup, its own markup) so it can be deleted in one shot: remove this
+ * file, remove the import + JSX block from both call sites, and (optionally)
+ * the `lostReasons`/`leadsSoFar` fields on CallFunnelStageConfig/
+ * CallFunnelReport and ClientConfig/ClientReport. Nothing else references it.
  *
  * Every percentage is out of `leadsSoFar` — every lead the pipeline has ever
  * taken in, not just this period's Calls Made — so the two sub-lines per
@@ -30,10 +34,6 @@ export function LostReasonsBreakdown({
 }) {
   return (
     <div>
-      <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-white/35">
-        Why It Didn&apos;t Close{" "}
-        <span className="normal-case tracking-normal text-slate-300 dark:text-white/25">(test)</span>
-      </p>
       <p className="mb-3 text-sm text-slate-500 dark:text-white/50">
         Of the 100% of {formatNumber(leadsSoFar)} leads obtained so far:
       </p>

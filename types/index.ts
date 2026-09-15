@@ -66,6 +66,17 @@ export interface ClientConfig {
   customFunnel?: CustomFunnelConfig;
   /** ISO date (YYYY-MM-DD) this client started working with us — the anchor for the "lifetime" period. The Lifetime option in PeriodToggle is only shown when this is set. */
   clientSince?: string;
+  /** Calendar(s) representing the self-serve booking widget (as opposed to a rep/SDR "Assisted Booking" calendar) — a subset of ghlCalendarIds. Confirmed with the user 2026-09-15: despite the name, "Assisted Booking" is the rep-assisted one, NOT self-booked — the other calendar in each account is. */
+  selfBookedCalendarIds?: string[];
+  /** Stages counted toward Disqualified Rate (current-stage snapshot, same convention as ghlClosedStageNames). */
+  ghlDisqualifiedStageNames?: string[];
+  /**
+   * TEST / EASILY REMOVABLE — see components/sections/LostReasonsBreakdown.tsx
+   * and CallFunnelStageConfig.lostReasons (same shape, same component, reused
+   * here for the standard Meta+GHL report). "Why It Didn't Close" buckets,
+   * current-stage snapshot within the period.
+   */
+  lostReasons?: { label: string; description: string; stageNames: string[] }[];
 }
 
 /** "month" is a real calendar month (the 1st through the 30th/31st of whichever month is current) — not a rolling 30 days. Changed 2026-08-05 per the user, so reports line up with an actual calendar/invoicing month. "custom" is a user-picked [from, to] range (inclusive both ends, see CustomRange) — added 2026-09-04. */
@@ -100,6 +111,12 @@ export interface SalesMetrics {
   quotesSent: number;
   closed: number;
   cac: number;
+  /** Leads that booked via the self-serve calendar, not an "Assisted Booking" one — 0 when selfBookedCalendarIds isn't configured. */
+  selfBooked: number;
+  selfBookedRate: number;
+  /** Disqualified (ghlDisqualifiedStageNames) — 0 when not configured. */
+  disqualified: number;
+  disqualifiedRate: number;
 }
 
 export interface HeadlineMetrics {
@@ -150,6 +167,10 @@ export interface ClientReport {
   sales: SalesMetrics;
   /** Populated when a data source (Meta/GHL) failed — shown as a banner instead of silently zeroing metrics. */
   warnings: string[];
+  /** TEST / EASILY REMOVABLE — see ClientConfig.lostReasons and components/sections/LostReasonsBreakdown.tsx. Absent when the client has no lostReasons configured (Excel Roofing). */
+  lostReasons?: LostReasonBreakdown[];
+  /** TEST / EASILY REMOVABLE — total opportunities ever created in this client's sales pipeline, independent of the selected period. The "100%" denominator for lostReasons' percentages. */
+  leadsSoFar?: number;
 }
 
 /** GHL-only report for clients with no Meta Ads involvement (see ClientConfig.customFunnel). */

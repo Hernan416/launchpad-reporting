@@ -92,6 +92,17 @@ export interface GhlSalesStats {
   quotesSentRevenue: number;
   closed: number;
   closedRevenue: number;
+  /** Disqualified (ghlDisqualifiedStageNames) — 0 when not configured. */
+  disqualified: number;
+  /** TEST / EASILY REMOVABLE — total opportunities ever created in this pipeline (not period-scoped) — see getCallFunnelStats' identical field for why the fetch already covers this. */
+  totalLeadsEver: number;
+  /** TEST / EASILY REMOVABLE — see ClientConfig.lostReasons. */
+  lostReasons: {
+    label: string;
+    total: number;
+    createdThisPeriod: number;
+    createdBeforePeriod: number;
+  }[];
 }
 
 export interface WeeklyAppointmentStats {
@@ -451,13 +462,52 @@ export async function getSalesStats(
   );
   const closedAgg = aggregateOpportunities(closedOpportunities);
 
+  const disqualified = client.ghlDisqualifiedStageNames
+    ? filterByStageNames(updatedOpportunities, stageNameById, client.ghlDisqualifiedStageNames).length
+    : 0;
+
+  // TEST / EASILY REMOVABLE — see ClientConfig.lostReasons. Split by
+  // createdAt vs the period boundary, same reasoning as getCallFunnelStats.
+  const lostReasons = (client.lostReasons ?? []).map((reason) => {
+    const reached = filterByStageNames(updatedOpportunities, stageNameById, reason.stageNames);
+    const createdThisPeriod = reached.filter((o) => isWithinRange(o.createdAt, startTime, endTime)).length;
+    return {
+      label: reason.label,
+      total: reached.length,
+      createdThisPeriod,
+      createdBeforePeriod: reached.length - createdThisPeriod,
+    };
+  });
+
   return {
     leads: leadOpportunities.length,
     quotesSent: quoteAgg.count,
     quotesSentRevenue: quoteAgg.revenue,
     closed: closedAgg.count,
     closedRevenue: closedAgg.revenue,
+    disqualified,
+    totalLeadsEver: opportunities.length,
+    lostReasons,
   };
+}
+
+/**
+ * Self-booked appointment count for the standard dashboard — the subset of
+ * ghlCalendarIds representing the self-serve booking widget (as opposed to a
+ * rep/SDR "Assisted Booking" calendar), see ClientConfig.selfBookedCalendarIds.
+ * 0 when not configured, same convention as ghlDisqualifiedStageNames.
+ */
+export async function getSelfBookedCount(
+  client: ClientConfig,
+  period: Period,
+  customRange?: CustomRange
+): Promise<number> {
+  if (!client.selfBookedCalendarIds || client.selfBookedCalendarIds.length === 0) {
+    return 0;
+  }
+  const { startTime, endTime } = periodToRange(period, client, customRange);
+  const events = await fetchCalendarEvents(client, client.selfBookedCalendarIds, startTime, endTime);
+  return events.length;
 }
 
 export async function getWeeklySalesStats(

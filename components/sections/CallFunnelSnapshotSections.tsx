@@ -4,6 +4,7 @@ import { MetricGroup } from "@/components/MetricGroup";
 import { MetricCard } from "@/components/MetricCard";
 import { HeadlineCard } from "@/components/HeadlineCard";
 import { formatCurrency, formatMultiplier, formatNumber, formatPercent } from "@/lib/format";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 // TEST / EASILY REMOVABLE — delete this import + the JSX block below that uses
 // it to pull this feature back out. See LostReasonsBreakdown.tsx and
 // CallFunnelStageConfig.lostReasons for the rest of the wiring.
@@ -123,7 +124,9 @@ export async function CallFunnelSnapshotSections({
 
       {/* TEST / EASILY REMOVABLE — delete this block + the import above to pull it back out. */}
       {report.lostReasons && report.leadsSoFar !== undefined && (
-        <LostReasonsBreakdown leadsSoFar={report.leadsSoFar} reasons={report.lostReasons} />
+        <CollapsibleSection title="Why It Didn't Close (test)">
+          <LostReasonsBreakdown leadsSoFar={report.leadsSoFar} reasons={report.lostReasons} />
+        </CollapsibleSection>
       )}
     </div>
   );

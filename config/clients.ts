@@ -167,6 +167,31 @@ export const clients: ClientConfig[] = [
       "Quote Rejected",
       "Quote Rejected - Job Lost",
     ],
+    // Confirmed with the user 2026-09-15: "In-Home Roof Estimate" is the
+    // self-serve booking widget calendar — this pipeline has no separate
+    // "Assisted Booking" calendar the way JJ Roofing/US Home Pro/Osland/
+    // McGuire do, so every booked appointment here counts as self-booked.
+    selfBookedCalendarIds: ["RyVQrAhULnwIxgCXH0uX"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable).
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
+    ],
   },
   {
     slug: "us-home-pro",
@@ -235,6 +260,33 @@ export const clients: ClientConfig[] = [
       "Job Completed",
       "Quote Rejected",
     ],
+    // Confirmed with the user 2026-09-15: despite the name, "Assisted
+    // Booking" (eYnFUn36MWEDuyv5BPq6, already in ghlCalendarIds above) is the
+    // rep-assisted calendar, NOT self-booked — "Free Kitchen Remodel
+    // Appointment" is the real self-serve widget one.
+    selfBookedCalendarIds: ["jOlkgFgxZinYvHUWo7uq"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable).
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        // Real stage name here is lowercase "territory" — confirmed via the
+        // GHL API 2026-09-15, unlike every other client's "Out of Territory".
+        stageNames: ["Out of territory"],
+      },
+    ],
   },
   {
     slug: "jj-roofing",
@@ -300,6 +352,31 @@ export const clients: ClientConfig[] = [
       "Job Completed",
       "Quote Rejected",
     ],
+    // Confirmed with the user 2026-09-15: despite the name, "Assisted
+    // Booking" (yh0U7Sv8J2J6dGfvRiqE, already in ghlCalendarIds above) is the
+    // rep-assisted calendar, NOT self-booked — "Roof Estimates (in-person)"
+    // is the real self-serve widget one.
+    selfBookedCalendarIds: ["6DDI0zvqHt7fsZny08vB"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable).
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
+    ],
   },
   {
     slug: "osland-roofing",
@@ -350,6 +427,35 @@ export const clients: ClientConfig[] = [
       "Job Completed",
       "Quote Rejected",
     ],
+    // Confirmed with the user 2026-09-15: despite the name, "Assisted
+    // Booking" (0MKvdysMQ3Zjsx2l4EHT, already in ghlCalendarIds above) is the
+    // rep-assisted calendar, NOT self-booked — "In-person Roof Inspection"
+    // is the real self-serve widget one (this is the same calendar the old
+    // comment above already identified as "the self-serve booking widget
+    // one" back when it was still named "MANUAL BOOKING - In-Person Roof
+    // Inspections" — only the display name changed).
+    selfBookedCalendarIds: ["IaCz8mmxNtzejVfZYW3N"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable). "Needs
+    // Follow Up" still excluded (see comment above — meaning unconfirmed).
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
+    ],
   },
   {
     slug: "mcguire-roofing",
@@ -398,6 +504,33 @@ export const clients: ClientConfig[] = [
       "Deposit Collected",
       "Job Completed",
       "Quote Rejected",
+    ],
+    // Confirmed with the user 2026-09-15: this account now also has its own
+    // "Assisted Booking" calendar (rep-assisted, not tracked in
+    // ghlCalendarIds above), so the single calendar already tracked here
+    // ("In-Home Roof Estimate") is the self-serve widget one — every booked
+    // appointment we count here counts as self-booked.
+    selfBookedCalendarIds: ["uODbVmNBqFAzTx7hKpDu"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable). "Needs
+    // Follow Up" still excluded (see comment above — meaning unconfirmed).
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
     ],
   },
 ];
