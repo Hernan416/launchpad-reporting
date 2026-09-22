@@ -534,8 +534,8 @@ export const clients: ClientConfig[] = [
     ],
   },
   {
-    slug: "samaritian-contracting",
-    name: "Samaritian Contracting",
+    slug: "samaritan-contracting",
+    name: "Samaritan Contracting",
     // No Meta Ads for this client (confirmed with the user 2026-09-20) — this
     // field is required by ClientConfig but never read, since callFunnel
     // below replaces both the standard Meta+GHL report and customFunnel
