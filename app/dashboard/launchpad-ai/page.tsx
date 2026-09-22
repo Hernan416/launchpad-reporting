@@ -91,6 +91,11 @@ export default async function LaunchpadDashboardPage({
           ? monthLabel
           : `Last ${TREND_WEEKS} Weeks`;
   const rangeQuery = period === "custom" && customRange ? `&from=${customRange.from}&to=${customRange.to}` : "";
+  // CallFunnelSnapshotSections/CallFunnelTrendsSections are shared with the
+  // standard client dashboard now, so they take entryLabel directly instead
+  // of looking it up themselves via Launchpad's own config — undefined for
+  // Combined, same as before.
+  const entryLabel = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey)!.entryLabel;
 
   // Kicked off here, not awaited — each Suspense boundary below awaits its
   // own promise independently, same streaming pattern as the standard
@@ -135,7 +140,7 @@ export default async function LaunchpadDashboardPage({
           </div>
         }
       >
-        <CallFunnelSnapshotSections reportPromise={reportPromise} pipelineKey={pipelineKey} />
+        <CallFunnelSnapshotSections reportPromise={reportPromise} entryLabel={entryLabel} />
       </Suspense>
 
       <Suspense
@@ -150,7 +155,7 @@ export default async function LaunchpadDashboardPage({
           trendsPromise={trendsPromise}
           rangeHeading={rangeHeading}
           period={period}
-          pipelineKey={pipelineKey}
+          entryLabel={entryLabel}
         />
       </Suspense>
     </DashboardShell>

@@ -3,6 +3,8 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { auth } from "@/lib/auth";
 import { getClientBySlug } from "@/config/clients";
 import {
+  getClientCallFunnelReport,
+  getClientCallFunnelTrends,
   getClientReport,
   getClientTrends,
   getPipelineFunnelReport,
@@ -12,6 +14,7 @@ import { parseCustomRange } from "@/lib/period";
 import type { Period } from "@/types";
 import { StandardReportDocument } from "@/components/pdf/StandardReportDocument";
 import { PipelineReportDocument } from "@/components/pdf/PipelineReportDocument";
+import { CallFunnelReportDocument } from "@/components/pdf/CallFunnelReportDocument";
 
 const TREND_WEEKS = 4;
 
@@ -76,7 +79,23 @@ export async function GET(
 
   let pdfBuffer: Buffer;
 
-  if (client.showMetaAds === false) {
+  if (client.callFunnel) {
+    const [report, trends] = await Promise.all([
+      getClientCallFunnelReport(clientSlug, period, customRange),
+      getClientCallFunnelTrends(clientSlug, period, TREND_WEEKS, customRange),
+    ]);
+    pdfBuffer = await renderToBuffer(
+      CallFunnelReportDocument({
+        pipelineTitle: client.name,
+        entryLabel: client.callFunnel.entryLabel,
+        period,
+        sinceLabel: clientSinceLabel,
+        customRangeLabel,
+        report,
+        trends,
+      })
+    );
+  } else if (client.showMetaAds === false) {
     const [report, trends] = await Promise.all([
       getPipelineFunnelReport(clientSlug, period, customRange),
       getPipelineFunnelTrends(clientSlug, period, TREND_WEEKS, customRange),

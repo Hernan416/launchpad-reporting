@@ -738,3 +738,105 @@ export async function getLaunchpadTrends(
     };
   });
 }
+
+/**
+ * Standard client version of getLaunchpadReport's single-pipeline branch —
+ * for a ClientConfig with `callFunnel` set (no Meta Ads, one call-center-
+ * style GHL pipeline, e.g. Samaritan Contracting). Reuses the exact same
+ * CallFunnelStats/CallFunnelReport shape, just fed by the real ClientConfig
+ * from config/clients.ts directly instead of a synthetic one.
+ */
+export async function getClientCallFunnelReport(
+  slug: string,
+  period: Period,
+  customRange?: CustomRange
+): Promise<CallFunnelReport> {
+  const client = getClientBySlug(slug);
+  if (!client) {
+    throw new Error(`Unknown client slug: ${slug}`);
+  }
+  if (!client.callFunnel) {
+    throw new Error(`${slug} has no callFunnel config in config/clients.ts.`);
+  }
+
+  const warnings: string[] = [];
+  let stats = EMPTY_CALL_FUNNEL_STATS;
+  try {
+    stats = await getCallFunnelStats(client, client.callFunnel.funnel, period, customRange);
+  } catch (err) {
+    console.error(`[metrics] ${slug} call-funnel fetch failed:`, err);
+    warnings.push(`Couldn't load ${client.name} from GHL.`);
+  }
+
+  const leadsSoFar = stats.totalLeadsEver;
+  const lostReasons = client.callFunnel.funnel.lostReasons?.map((reasonConfig) => {
+    const data = stats.lostReasons.find((r) => r.label === reasonConfig.label) ?? {
+      total: 0,
+      createdThisPeriod: 0,
+      createdBeforePeriod: 0,
+    };
+    return {
+      label: reasonConfig.label,
+      description: reasonConfig.description,
+      totalCount: data.total,
+      totalPct: safeDivide(data.total, leadsSoFar),
+      createdBeforePeriodCount: data.createdBeforePeriod,
+      createdBeforePeriodPct: safeDivide(data.createdBeforePeriod, leadsSoFar),
+      createdThisPeriodCount: data.createdThisPeriod,
+      createdThisPeriodPct: safeDivide(data.createdThisPeriod, leadsSoFar),
+    };
+  });
+
+  return {
+    period,
+    updatedAt: new Date().toISOString(),
+    warnings,
+    metrics: buildCallFunnelMetrics(stats),
+    lostReasons,
+    leadsSoFar,
+  };
+}
+
+/** Week-by-week version of getClientCallFunnelReport, for the trend charts. */
+export async function getClientCallFunnelTrends(
+  slug: string,
+  period: Period,
+  weeks: number = 4,
+  customRange?: CustomRange
+): Promise<WeeklyCallFunnelDataPoint[]> {
+  const client = getClientBySlug(slug);
+  if (!client) {
+    throw new Error(`Unknown client slug: ${slug}`);
+  }
+  if (!client.callFunnel) {
+    throw new Error(`${slug} has no callFunnel config in config/clients.ts.`);
+  }
+
+  const buckets = resolveTrendBuckets(period, weeks, client.clientSince, customRange);
+
+  let weekly: Awaited<ReturnType<typeof getWeeklyCallFunnelStats>> = [];
+  try {
+    weekly = await getWeeklyCallFunnelStats(client, client.callFunnel.funnel, buckets);
+  } catch (err) {
+    console.error(`[metrics] ${slug} weekly call-funnel fetch failed:`, err);
+  }
+  const byWeek = new Map(weekly.map((w) => [w.weekIndex, w]));
+
+  return buckets.map((bucket) => {
+    const w = byWeek.get(bucket.index) ?? { ...EMPTY_CALL_FUNNEL_STATS, weekIndex: bucket.index };
+    const metrics = buildCallFunnelMetrics(w);
+    return {
+      weekLabel: bucket.label,
+      weekStart: bucket.start.toISOString(),
+      callsMade: w.callsMade,
+      appointmentsBooked: metrics.appointmentsBooked,
+      shows: metrics.shows,
+      noShows: metrics.noShows,
+      showRate: metrics.showRate,
+      closed: metrics.closed,
+      notClosed: metrics.notClosed,
+      closeRate: metrics.closeRate,
+      closedRevenue: metrics.closedRevenue,
+    };
+  });
+}

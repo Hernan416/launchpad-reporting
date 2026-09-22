@@ -1,5 +1,4 @@
 import type { CallFunnelReport } from "@/types";
-import { getLaunchpadPipeline } from "@/config/launchpad";
 import { MetricGroup } from "@/components/MetricGroup";
 import { MetricCard } from "@/components/MetricCard";
 import { HeadlineCard } from "@/components/HeadlineCard";
@@ -11,19 +10,24 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { LostReasonsBreakdown } from "@/components/sections/LostReasonsBreakdown";
 
 /**
- * Cards-only slice of the Launchpad AI dashboard. The Combined view
- * (pipelineKey === "combined") deliberately has no `meta` on the report and
- * skips the Calls Made/Leads card entirely — see getLaunchpadReport.
+ * Cards-only slice of the call-funnel dashboard — shared by Launchpad AI
+ * (config/launchpad.ts) and any standard client with ClientConfig.callFunnel
+ * set (e.g. Samaritan Contracting, GHL-only). `entryLabel` names the
+ * "opportunities created this period" count in whatever vocabulary the
+ * caller uses ("Leads", "Calls Made", "Dials Made") — omit it (e.g. for
+ * Launchpad's Combined view) to hide that card, since a blended count across
+ * differently-shaped funnels isn't a meaningful number. `report.meta` is
+ * only ever present for an ad-driven view — absent entirely for a GHL-only
+ * client, which is what hides the whole Meta Ads group below.
  */
 export async function CallFunnelSnapshotSections({
   reportPromise,
-  pipelineKey,
+  entryLabel,
 }: {
   reportPromise: Promise<CallFunnelReport>;
-  pipelineKey: string;
+  entryLabel?: string;
 }) {
   const report = await reportPromise;
-  const view = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey);
 
   return (
     <div className="space-y-10">
@@ -74,18 +78,18 @@ export async function CallFunnelSnapshotSections({
         </div>
       </div>
 
-      {report.meta && view && (
+      {report.meta && entryLabel && (
         <MetricGroup
           title="Meta Ads"
           accent="blue"
-          caption={`${view.entryLabel} = new opportunities created in this period only.`}
+          caption={`${entryLabel} = new opportunities created in this period only.`}
         >
           <MetricCard accent="blue" label="CPC" value={formatCurrency(report.meta.cpc)} />
           <MetricCard accent="blue" label="CTR" value={formatPercent(report.meta.ctr)} />
-          <MetricCard accent="blue" label={view.entryLabel} value={formatNumber(report.meta.leads)} />
+          <MetricCard accent="blue" label={entryLabel} value={formatNumber(report.meta.leads)} />
           <MetricCard
             accent="blue"
-            label={view.entryLabel === "Leads" ? "Cost per lead" : `Cost per ${view.entryLabel.toLowerCase()}`}
+            label={entryLabel === "Leads" ? "Cost per lead" : `Cost per ${entryLabel.toLowerCase()}`}
             value={formatCurrency(report.meta.costPerLead)}
           />
           <MetricCard
@@ -102,8 +106,8 @@ export async function CallFunnelSnapshotSections({
         accent="gold"
         caption="Appointments Booked includes ones still pending (Confirmed/Needs Reschedule) or Cancelled before the appointment happened — Show Rate above only counts appointments that already resolved to a Show or No-Show, which is why its denominator is smaller."
       >
-        {view && (
-          <MetricCard accent="gold" label={view.entryLabel} value={formatNumber(report.metrics.callsMade)} />
+        {entryLabel && (
+          <MetricCard accent="gold" label={entryLabel} value={formatNumber(report.metrics.callsMade)} />
         )}
         <MetricCard
           accent="gold"

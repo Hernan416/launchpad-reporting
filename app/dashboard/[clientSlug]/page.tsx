@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getClientBySlug } from "@/config/clients";
 import {
+  getClientCallFunnelReport,
+  getClientCallFunnelTrends,
   getClientReport,
   getClientTrends,
   getPipelineFunnelReport,
@@ -19,6 +21,8 @@ import { SnapshotSections } from "@/components/sections/SnapshotSections";
 import { TrendsSections } from "@/components/sections/TrendsSections";
 import { PipelineSnapshotSections } from "@/components/sections/PipelineSnapshotSections";
 import { PipelineTrendsSections } from "@/components/sections/PipelineTrendsSections";
+import { CallFunnelSnapshotSections } from "@/components/sections/CallFunnelSnapshotSections";
+import { CallFunnelTrendsSections } from "@/components/sections/CallFunnelTrendsSections";
 import { CardGridSkeleton } from "@/components/skeletons/CardGridSkeleton";
 import { ChartGridSkeleton } from "@/components/skeletons/ChartGridSkeleton";
 
@@ -124,6 +128,62 @@ export default async function ClientDashboardPage({
 
   const topNav =
     session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;
+
+  // Clients with a single call-center-style GHL pipeline and no Meta Ads at
+  // all (e.g. Samaritan Contracting) get the same CallFunnelReport model
+  // built for Launchpad AI, just fed by this real ClientConfig — checked
+  // before showMetaAds below since callFunnel replaces that branch entirely.
+  if (client.callFunnel) {
+    const reportPromise = getClientCallFunnelReport(clientSlug, period, customRange);
+    const trendsPromise = getClientCallFunnelTrends(clientSlug, period, TREND_WEEKS, customRange);
+
+    return (
+      <DashboardShell title={client.name} topNav={topNav}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <PeriodToggle
+              slug={clientSlug}
+              period={period}
+              showLifetime={!!client.clientSince}
+              customRange={customRange}
+            />
+            {period === "custom" && customRange && (
+              <CustomRangeForm slug={clientSlug} from={customRange.from} to={customRange.to} />
+            )}
+          </div>
+          <ExportPdfButton slug={clientSlug} period={period} extraQuery={rangeQuery} />
+        </div>
+
+        <Suspense
+          fallback={
+            <div className="space-y-8">
+              <CardGridSkeleton count={4} accent="gold" />
+              <CardGridSkeleton count={4} accent="blue" />
+              <CardGridSkeleton count={6} accent="gold" />
+            </div>
+          }
+        >
+          <CallFunnelSnapshotSections reportPromise={reportPromise} entryLabel={client.callFunnel.entryLabel} />
+        </Suspense>
+
+        <Suspense
+          fallback={
+            <div className="space-y-8">
+              <div className="h-64 w-full animate-pulse rounded-xl border border-black/[0.08] bg-white shadow-card dark:border-white/8 dark:bg-[#1e2128]" />
+              <ChartGridSkeleton count={2} accent="blue" />
+            </div>
+          }
+        >
+          <CallFunnelTrendsSections
+            trendsPromise={trendsPromise}
+            rangeHeading={rangeHeading}
+            period={period}
+            entryLabel={client.callFunnel.entryLabel}
+          />
+        </Suspense>
+      </DashboardShell>
+    );
+  }
 
   // Clients with no Meta Ads involvement get a GHL-only dashboard built
   // around their actual sales pipeline instead of the standard Meta+GHL report.

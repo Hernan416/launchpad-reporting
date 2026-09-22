@@ -230,6 +230,31 @@ function isClosedInRange(
   return opp.status === "won" && isWithinRange(opp.lastStatusChangeAt, startTime, endTime);
 }
 
+/**
+ * Generalized version of isClosedInRange's stage-or-status logic, for
+ * buckets other than "closed" — e.g. CallFunnelStageConfig's
+ * disqualifiedStageNames/disqualifiedStatuses, where a lead can be marked
+ * dead/lost via GHL's own status field without ever being dragged to a
+ * "dead"-looking stage (confirmed on real Samaritan Contracting data
+ * 2026-09-20: 3 opportunities sitting at "Appointment Confirmed" with status
+ * "lost"). `statusNames` empty means status is never checked, same as if
+ * the field wasn't configured at all.
+ */
+function isInRangeByStageOrStatus(
+  opp: Opportunity,
+  stageNameById: Map<string, string>,
+  stageNames: Set<string>,
+  statusNames: Set<string>,
+  startTime: number,
+  endTime: number
+): boolean {
+  const byStage =
+    stageNames.has(stageNameById.get(opp.pipelineStageId) ?? "") &&
+    isWithinRange(opp.lastStageChangeAt, startTime, endTime);
+  if (byStage) return true;
+  return !!opp.status && statusNames.has(opp.status) && isWithinRange(opp.lastStatusChangeAt, startTime, endTime);
+}
+
 /** Weekly-bucket version of isClosedInRange — same two-way stage/won-status logic, but returns which bucket the closed event lands in (by lastStageChangeAt or lastStatusChangeAt respectively) instead of a plain boolean. */
 function closedBucketIndex(
   opp: Opportunity,
@@ -850,9 +875,19 @@ export async function getCallFunnelStats(
       ).length
     : 0;
 
-  const disqualified = funnel.disqualifiedStageNames
-    ? inStages(funnel.disqualifiedStageNames).length
-    : 0;
+  const disqualified =
+    funnel.disqualifiedStageNames || funnel.disqualifiedStatuses
+      ? allOpportunities.filter((o) =>
+          isInRangeByStageOrStatus(
+            o,
+            stageNameById,
+            new Set(funnel.disqualifiedStageNames ?? []),
+            new Set(funnel.disqualifiedStatuses ?? []),
+            startTime,
+            endTime
+          )
+        ).length
+      : 0;
 
   // TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons. Split by
   // createdAt vs the period boundary so the UI can say e.g. "these came in

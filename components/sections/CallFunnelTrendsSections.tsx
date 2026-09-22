@@ -1,5 +1,4 @@
 import type { Period, WeeklyCallFunnelDataPoint } from "@/types";
-import { getLaunchpadPipeline } from "@/config/launchpad";
 import { groupWeeksByMonth, summarizeCallFunnelMonth } from "@/lib/monthlyRollup";
 import { ChartCard } from "@/components/ChartCard";
 import { CallFunnelWeeklyTable } from "@/components/CallFunnelWeeklyTable";
@@ -7,23 +6,24 @@ import { CallFunnelVolumeChart } from "@/components/charts/CallFunnelVolumeChart
 import { CallFunnelRateChart } from "@/components/charts/CallFunnelRateChart";
 
 /**
- * Chart-and-table slice of the Launchpad AI dashboard — mirrors
- * TrendsSections' structure (table first, then charts), including its
- * lifetime month-grouping fix, but for the simpler call-funnel shape.
+ * Chart-and-table slice of the call-funnel dashboard — shared by Launchpad
+ * AI and any standard client with ClientConfig.callFunnel set (see
+ * CallFunnelSnapshotSections for the full explanation of `entryLabel`).
+ * Mirrors TrendsSections' structure (table first, then charts), including
+ * its lifetime month-grouping fix, but for the simpler call-funnel shape.
  */
 export async function CallFunnelTrendsSections({
   trendsPromise,
   rangeHeading,
   period,
-  pipelineKey,
+  entryLabel,
 }: {
   trendsPromise: Promise<WeeklyCallFunnelDataPoint[]>;
   rangeHeading: string;
   period: Period;
-  pipelineKey: string;
+  entryLabel?: string;
 }) {
   const trends = await trendsPromise;
-  const view = pipelineKey === "combined" ? undefined : getLaunchpadPipeline(pipelineKey);
   const monthGroups = period === "lifetime" || period === "custom" ? groupWeeksByMonth(trends) : null;
   const showMonthGroups = !!monthGroups && monthGroups.length > 1;
 
@@ -43,7 +43,7 @@ export async function CallFunnelTrendsSections({
                 </h3>
                 <CallFunnelWeeklyTable
                   data={group.weeks}
-                  entryLabel={view?.entryLabel}
+                  entryLabel={entryLabel}
                   totalLabel="Month Total"
                   totals={summarizeCallFunnelMonth(group.weeks)}
                 />
@@ -51,7 +51,7 @@ export async function CallFunnelTrendsSections({
             ))}
           </div>
         ) : (
-          <CallFunnelWeeklyTable data={trends} entryLabel={view?.entryLabel} />
+          <CallFunnelWeeklyTable data={trends} entryLabel={entryLabel} />
         )}
       </div>
 

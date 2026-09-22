@@ -64,6 +64,19 @@ export interface ClientConfig {
   ghlShowStageNames?: string[];
   /** Used instead of the standard Meta+GHL report when showMetaAds is false. */
   customFunnel?: CustomFunnelConfig;
+  /**
+   * Used instead of both the standard Meta+GHL report AND customFunnel for a
+   * client with no Meta Ads AND a single call-center-style pipeline (e.g.
+   * Samaritan Contracting) — reuses the exact same CallFunnelReport/
+   * CallFunnelStageConfig model built for Launchpad AI's own pipelines (see
+   * config/launchpad.ts), just attached to a real ClientConfig instead of a
+   * synthetic one. metaAdAccountId is never read when this is set.
+   */
+  callFunnel?: {
+    /** "Leads" / "Calls Made" / "Dials Made" — whatever vocabulary this client uses for "opportunities created this period". */
+    entryLabel: string;
+    funnel: CallFunnelStageConfig;
+  };
   /** ISO date (YYYY-MM-DD) this client started working with us — the anchor for the "lifetime" period. The Lifetime option in PeriodToggle is only shown when this is set. */
   clientSince?: string;
   /** Calendar(s) representing the self-serve booking widget (as opposed to a rep/SDR "Assisted Booking" calendar) — a subset of ghlCalendarIds. Confirmed with the user 2026-09-15: despite the name, "Assisted Booking" is the rep-assisted one, NOT self-booked — the other calendar in each account is. */
@@ -238,6 +251,16 @@ export interface CallFunnelStageConfig {
   selfBookedTag?: string;
   /** Stages counted toward Disqualified Rate (e.g. "Application Disqualified" + "Disqualified" — two different disqualification points in the Roofing Ads 2026 funnel). */
   disqualifiedStageNames?: string[];
+  /**
+   * Opportunity `status` values (GHL's "lost"/"abandoned"/etc.) that ALSO
+   * count toward Disqualified Rate regardless of current pipelineStageId —
+   * mirrors closedStageNames' own won-status fallback (see isClosedInRange
+   * in lib/ghl.ts). Needed for pipelines with no dedicated "dead lead" stage
+   * that reliably gets used — confirmed necessary for Samaritan Contracting
+   * 2026-09-20: 3 real opportunities sat at "Appointment Confirmed" with
+   * status "lost", which stage-name matching alone would have missed.
+   */
+  disqualifiedStatuses?: string[];
   /**
    * TEST / EASILY REMOVABLE — see components/sections/LostReasonsBreakdown.tsx.
    * "Why didn't this lead close" buckets, current-stage snapshot within the

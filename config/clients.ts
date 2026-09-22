@@ -533,6 +533,63 @@ export const clients: ClientConfig[] = [
       },
     ],
   },
+  {
+    slug: "samaritian-contracting",
+    name: "Samaritian Contracting",
+    // No Meta Ads for this client (confirmed with the user 2026-09-20) — this
+    // field is required by ClientConfig but never read, since callFunnel
+    // below replaces both the standard Meta+GHL report and customFunnel
+    // entirely. Same placeholder pattern as Launchpad's Cold Call Sales
+    // pseudo-client (config/launchpad.ts).
+    metaAdAccountId: "",
+    ghlLocationId: "uYz5w6CNq8dMcA7pnHua",
+    // Switched 2026-09-21 per the user: track "New sales Pipeline" instead of
+    // "Live leads" going forward (clean cutover, not a merge — confirmed with
+    // the user). clientSince is this pipeline's own start, NOT the old "Live
+    // leads" one — "Live leads"' 553 historical opportunities are no longer
+    // counted by this dashboard at all.
+    clientSince: "2026-09-21",
+    // Mapped 2026-09-21 via direct GHL API calls (no MCP server configured
+    // for this account yet). Location has 4 pipelines total: "Live leads"
+    // (553 opps, the previous pipeline — no longer tracked), "Need to called
+    // leads" (121, a separate worklist, never tracked), "Sold" (0 opps, dead
+    // end), and "New sales Pipeline" (the current one, brand new — only 1
+    // opportunity existed at the time of this switch).
+    //
+    // "New sales Pipeline" stages: New Lead, Contacted, Unqualified,
+    // Appointment booked, In follow-up, Closed. Unlike "Live leads", this one
+    // has an actual "Closed" stage, so closedStageNames is set directly
+    // (still backed by the isClosedInRange won-status fallback too). No
+    // dedicated "Lost"/"Dead Lead" stage — only "Unqualified" — so
+    // disqualifiedStatuses keeps the same status-based fallback used for
+    // "Live leads".
+    //
+    // Confirmed with the user 2026-09-21: this pipeline has no stage that
+    // reliably marks "showed up" (no equivalent of "Appointment Completed"),
+    // so Shows/No-Shows/Show Rate are intentionally left untracked
+    // (showStageNames/noShowStageNames empty) rather than approximated from
+    // "Appointment booked".
+    //
+    // Scope still limited to the metrics the user asked for (Dials Made,
+    // Appointments Booked, Disqualified Rate, Closed) — no
+    // selfBookedTag/lostReasons configured, so those sections/cards stay
+    // hidden (see CallFunnelSnapshotSections — Self-Booked Rate only renders
+    // when hasMetaAds, which this client has none of anyway; the "Why It
+    // Didn't Close" breakdown only renders when lostReasons is set).
+    callFunnel: {
+      entryLabel: "Dials Made",
+      funnel: {
+        pipelineName: "New sales Pipeline",
+        bookedStageNames: ["Appointment booked", "In follow-up", "Closed"],
+        showStageNames: [],
+        noShowStageNames: [],
+        closedStageNames: ["Closed"],
+        notClosedStageNames: [],
+        disqualifiedStageNames: ["Unqualified"],
+        disqualifiedStatuses: ["lost", "abandoned"],
+      },
+    },
+  },
 ];
 
 export function getClientBySlug(slug: string): ClientConfig | undefined {
