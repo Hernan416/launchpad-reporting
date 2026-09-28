@@ -535,6 +535,69 @@ export async function getSelfBookedCount(
   return events.length;
 }
 
+interface TaggedContactsResponse {
+  contacts: { dateAdded: string; searchAfter?: [number, string] }[];
+  total: number;
+}
+
+/**
+ * Every contact carrying `tag`, across all pages. Uses GHL's /contacts/search
+ * (Elasticsearch-backed, cursor pagination via each contact's own
+ * `searchAfter` — the plain /contacts/ list endpoint has no tag filter).
+ */
+async function fetchContactsByTag(client: ClientConfig, tag: string): Promise<{ dateAdded: string }[]> {
+  const all: { dateAdded: string; searchAfter?: [number, string] }[] = [];
+  let searchAfter: [number, string] | undefined;
+  let page = 0;
+
+  while (true) {
+    const res = await fetch(`${API_BASE}/contacts/search`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getGhlToken(client)}`,
+        Version: API_VERSION,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        locationId: client.ghlLocationId,
+        pageLimit: 100,
+        filters: [{ field: "tags", operator: "contains", value: tag }],
+        ...(searchAfter ? { searchAfter } : {}),
+      }),
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) {
+      throw new Error(`GHL request to /contacts/search failed: ${res.status} ${res.statusText}`);
+    }
+    const data = (await res.json()) as TaggedContactsResponse;
+    const contacts = data.contacts ?? [];
+    all.push(...contacts);
+    if (contacts.length < 100) break;
+    searchAfter = contacts[contacts.length - 1].searchAfter;
+    page++;
+    if (!searchAfter || page > 50) break;
+  }
+
+  return all;
+}
+
+/**
+ * Count of contacts carrying `tag` whose dateAdded falls in the selected
+ * period — the whole of the Skool/ManyChat sub-view (see
+ * config/launchpad.ts's skoolManychatView). No pipeline/funnel involved.
+ */
+export async function getTaggedContactCount(
+  client: ClientConfig,
+  tag: string,
+  period: Period,
+  customRange?: CustomRange
+): Promise<number> {
+  const { startTime, endTime } = periodToRange(period, client, customRange);
+  const contacts = await fetchContactsByTag(client, tag);
+  return contacts.filter((c) => isWithinRange(c.dateAdded, startTime, endTime)).length;
+}
+
 export async function getWeeklySalesStats(
   client: ClientConfig,
   buckets: WeekBucket[]

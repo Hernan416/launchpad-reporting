@@ -342,6 +342,32 @@ export interface CallFunnelReport {
   leadsSoFar?: number;
 }
 
+/**
+ * Config for a bare "count of contacts carrying this tag" sub-view — no
+ * pipeline, no funnel stages, just a single number. Built for Launchpad's
+ * Skool-via-ManyChat tracker (config/launchpad.ts's skoolManychatView):
+ * their Skool community automation tags a contact "Manychat_automation"
+ * when they joined via a ManyChat-driven signup. `client` is reused purely
+ * as a vehicle for lib/ghl.ts's fetch plumbing (GHL token via slug,
+ * ghlLocationId, clientSince as this view's own Lifetime anchor).
+ */
+export interface TaggedContactViewConfig {
+  key: string;
+  name: string;
+  /** What's being counted, e.g. "Skool Members via ManyChat" — shown as the single metric's label. */
+  label: string;
+  /** The exact GHL contact tag to count. */
+  tag: string;
+  client: ClientConfig;
+}
+
+export interface TaggedContactReport {
+  period: Period;
+  updatedAt: string;
+  warnings: string[];
+  count: number;
+}
+
 export interface WeeklyCallFunnelDataPoint {
   weekLabel: string;
   weekStart: string;

@@ -5,12 +5,13 @@ import type {
   LeadSourceCount,
   PipelineFunnelReport,
   Period,
+  TaggedContactReport,
   WeeklyCallFunnelDataPoint,
   WeeklyDataPoint,
   WeeklyPipelineDataPoint,
 } from "@/types";
 import { getClientBySlug } from "@/config/clients";
-import { getLaunchpadPipeline, launchpadCombinedSince, launchpadPipelines } from "@/config/launchpad";
+import { getLaunchpadPipeline, launchpadCombinedSince, launchpadPipelines, skoolManychatView } from "@/config/launchpad";
 import { getMetaInsights, getMetaWeeklyInsights, type MetaInsights } from "@/lib/meta";
 import {
   getAppointmentStats,
@@ -18,6 +19,7 @@ import {
   getPipelineFunnelStats,
   getSalesStats,
   getSelfBookedCount,
+  getTaggedContactCount,
   getWeeklyAppointmentStats,
   getWeeklyCallFunnelStats,
   getWeeklyPipelineFunnelStats,
@@ -794,6 +796,32 @@ export async function getClientCallFunnelReport(
     metrics: buildCallFunnelMetrics(stats),
     lostReasons,
     leadsSoFar,
+  };
+}
+
+/**
+ * The entire Skool/ManyChat sub-view — see config/launchpad.ts's
+ * skoolManychatView. No funnel, no trends, just a tagged-contact count for
+ * the selected period.
+ */
+export async function getSkoolManychatReport(
+  period: Period,
+  customRange?: CustomRange
+): Promise<TaggedContactReport> {
+  const warnings: string[] = [];
+  let count = 0;
+  try {
+    count = await getTaggedContactCount(skoolManychatView.client, skoolManychatView.tag, period, customRange);
+  } catch (err) {
+    console.error(`[metrics] skool-manychat fetch failed:`, err);
+    warnings.push(`Couldn't load ${skoolManychatView.name} from GHL.`);
+  }
+
+  return {
+    period,
+    updatedAt: new Date().toISOString(),
+    warnings,
+    count,
   };
 }
 

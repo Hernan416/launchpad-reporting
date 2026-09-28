@@ -1,4 +1,4 @@
-import type { CallPipelineViewConfig } from "@/types";
+import type { CallPipelineViewConfig, TaggedContactViewConfig } from "@/types";
 
 const LOCATION_ID = "3xMX4EZod7Vu9Ydaa6YZ";
 
@@ -155,6 +155,37 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
 export function getLaunchpadPipeline(key: string): CallPipelineViewConfig | undefined {
   return launchpadPipelines.find((p) => p.key === key);
 }
+
+/**
+ * Separate GHL sub-account ("Learn with LaunchPad" — confirmed via the GHL
+ * API 2026-09-28), tracking Skool community members whose signup came
+ * through a ManyChat automation (tagged "Manychat_automation" on join).
+ * Not a real pipeline — no opportunities/stages involved, just a tagged-
+ * contact count — so it's kept separate from launchpadPipelines entirely
+ * and NOT included in the Combined view (nothing to sum it with).
+ *
+ * Confirmed with the user 2026-09-28: at setup time, no contact in this
+ * account had this tag yet (the only tag in use was "new-member-zap", 70
+ * contacts, an unrelated Zapier automation) — the ManyChat automation is
+ * presumably new/not yet live. clientSince is this feature's own setup
+ * date, not tied to any real "first tagged contact" (there isn't one yet).
+ */
+export const skoolManychatView: TaggedContactViewConfig = {
+  key: "skool-manychat",
+  name: "Skool (ManyChat)",
+  label: "Skool Members via ManyChat",
+  // GHL lowercases every tag on save — confirmed 2026-09-28 with a real test
+  // tag: the user applied "Manychat_automation" in the GHL UI, but the API
+  // stored (and only matches on) "manychat_automation".
+  tag: "manychat_automation",
+  client: {
+    slug: "skool-manychat",
+    name: "Skool (ManyChat)",
+    metaAdAccountId: "",
+    ghlLocationId: "ObaoiWSbrXH1bTtPsoe4",
+    clientSince: "2026-09-28",
+  },
+};
 
 /** Earliest of both pipelines' own clientSince dates — anchors the Combined view's Lifetime period. */
 export const launchpadCombinedSince = launchpadPipelines.reduce(

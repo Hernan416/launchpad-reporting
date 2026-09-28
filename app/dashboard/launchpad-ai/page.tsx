@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getLaunchpadPipeline, launchpadCombinedSince } from "@/config/launchpad";
-import { getLaunchpadReport, getLaunchpadTrends } from "@/lib/metrics";
+import { getLaunchpadPipeline, launchpadCombinedSince, skoolManychatView } from "@/config/launchpad";
+import { getLaunchpadReport, getLaunchpadTrends, getSkoolManychatReport } from "@/lib/metrics";
 import { parseCustomRange } from "@/lib/period";
 import type { Period } from "@/types";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -13,6 +13,7 @@ import { LaunchpadPipelineToggle } from "@/components/LaunchpadPipelineToggle";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { CallFunnelSnapshotSections } from "@/components/sections/CallFunnelSnapshotSections";
 import { CallFunnelTrendsSections } from "@/components/sections/CallFunnelTrendsSections";
+import { SkoolManychatSection } from "@/components/sections/SkoolManychatSection";
 import { CardGridSkeleton } from "@/components/skeletons/CardGridSkeleton";
 import { ChartGridSkeleton } from "@/components/skeletons/ChartGridSkeleton";
 
@@ -46,7 +47,7 @@ export default async function LaunchpadDashboardPage({
   }
 
   const pipelineKey =
-    pipelineParam === "roofing-ads-2026" || pipelineParam === "cold-call-sales"
+    pipelineParam === "roofing-ads-2026" || pipelineParam === "cold-call-sales" || pipelineParam === skoolManychatView.key
       ? pipelineParam
       : "combined";
 
@@ -60,6 +61,44 @@ export default async function LaunchpadDashboardPage({
           ? "lifetime"
           : "7d";
   const period: Period = requestedPeriod === "custom" && !customRange ? "7d" : requestedPeriod;
+  const rangeQuery = period === "custom" && customRange ? `&from=${customRange.from}&to=${customRange.to}` : "";
+
+  // Not a real pipeline — a separate GHL sub-account, just a tagged-contact
+  // count (see config/launchpad.ts's skoolManychatView). Deliberately no
+  // trends/PDF export for this one, per the user 2026-09-28: "una sub vista
+  // muy sencilla ... que solo cuente eso".
+  if (pipelineKey === skoolManychatView.key) {
+    const skoolReportPromise = getSkoolManychatReport(period, customRange);
+
+    return (
+      <DashboardShell title="Launchpad AI" topNav={<ClientNav currentSlug="launchpad-ai" />}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <LaunchpadPipelineToggle pipeline={pipelineKey} period={period} rangeQuery={rangeQuery} />
+          <div className="flex flex-wrap items-center gap-3">
+            <PeriodToggle
+              slug="launchpad-ai"
+              period={period}
+              showLifetime
+              extraQuery={`&pipeline=${pipelineKey}`}
+              customRange={customRange}
+            />
+            {period === "custom" && customRange && (
+              <CustomRangeForm
+                slug="launchpad-ai"
+                from={customRange.from}
+                to={customRange.to}
+                extraHidden={{ pipeline: pipelineKey }}
+              />
+            )}
+          </div>
+        </div>
+
+        <Suspense fallback={<CardGridSkeleton count={1} accent="gold" />}>
+          <SkoolManychatSection reportPromise={skoolReportPromise} label={skoolManychatView.label} />
+        </Suspense>
+      </DashboardShell>
+    );
+  }
 
   const sinceDate =
     pipelineKey === "combined" ? launchpadCombinedSince : getLaunchpadPipeline(pipelineKey)!.client.clientSince!;
@@ -90,7 +129,6 @@ export default async function LaunchpadDashboardPage({
         : period === "month"
           ? monthLabel
           : `Last ${TREND_WEEKS} Weeks`;
-  const rangeQuery = period === "custom" && customRange ? `&from=${customRange.from}&to=${customRange.to}` : "";
   // CallFunnelSnapshotSections/CallFunnelTrendsSections are shared with the
   // standard client dashboard now, so they take entryLabel directly instead
   // of looking it up themselves via Launchpad's own config — undefined for

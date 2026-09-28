@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { launchpadPipelines } from "@/config/launchpad";
+import { launchpadPipelines, skoolManychatView } from "@/config/launchpad";
 
 /** Tab-style switch between Launchpad's two real pipelines and their Combined view — analogous to PeriodToggle, but for which pipeline instead of which time window. Preserves the current period (and, for "custom", the picked from/to) across a pipeline switch. */
 export function LaunchpadPipelineToggle({
@@ -15,6 +15,9 @@ export function LaunchpadPipelineToggle({
   const options = [
     { value: "combined", label: "Combined" },
     ...launchpadPipelines.map((p) => ({ value: p.key, label: p.name })),
+    // Not a real pipeline, so it's excluded from Combined — a separate GHL
+    // sub-account, just a tagged-contact count (see skoolManychatView).
+    { value: skoolManychatView.key, label: skoolManychatView.name },
   ];
 
   return (
