@@ -93,6 +93,7 @@ export async function GET(
         customRangeLabel,
         report,
         trends,
+        hideShowRate: client.callFunnel.hideShowRate,
       })
     );
   } else if (client.showMetaAds === false) {

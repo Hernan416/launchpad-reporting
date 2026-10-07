@@ -536,57 +536,143 @@ export const clients: ClientConfig[] = [
   {
     slug: "samaritan-contracting",
     name: "Samaritan Contracting",
-    // No Meta Ads for this client (confirmed with the user 2026-09-20) — this
+    // No Meta Ads account access for this client (confirmed with the user
+    // 2026-10-06, re-confirmed 2026-10-06 after a first attempt at the
+    // standard Meta+GHL shape rendered Meta-derived cards — see below). This
     // field is required by ClientConfig but never read, since callFunnel
-    // below replaces both the standard Meta+GHL report and customFunnel
-    // entirely. Same placeholder pattern as Launchpad's Cold Call Sales
-    // pseudo-client (config/launchpad.ts).
+    // below replaces the standard Meta+GHL report entirely, same pattern as
+    // Launchpad's Cold Call Sales pseudo-client (config/launchpad.ts).
+    //
+    // IMPORTANT: do not switch this client to the plain ghlPipelineName/
+    // ghlQuoteSentStageNames/ghlClosedStageNames/ghlShowStageNames fields
+    // (the ones Osland/McGuire use) — ClientReport.meta is NOT optional, so
+    // the standard dashboard (SnapshotSections) always renders Meta Ads cards
+    // (Spend/CPC/CTR/CAC/ROAS/Cost per Lead/Self-Booked Rate) even when
+    // metaAdAccountId is blank and the fetch fails — exactly the Meta-
+    // Ads-derived metrics the user does not want shown for this client.
+    // callFunnel's CallFunnelReport.meta is OPTIONAL and getClientCallFunnelReport
+    // never sets it, so CallFunnelSnapshotSections's entire "Meta Ads" card
+    // group (and the Self-Booked Rate card inside it) stays hidden — the
+    // only way in this codebase to get the Osland/McGuire STAGE TAXONOMY
+    // (Appointments Booked/Shows/No-Shows/Closed/Disqualified/Lost Reasons)
+    // with ZERO ad-spend-derived numbers anywhere on the page.
     metaAdAccountId: "",
-    ghlLocationId: "uYz5w6CNq8dMcA7pnHua",
-    // Switched 2026-09-21 per the user: track "New sales Pipeline" instead of
-    // "Live leads" going forward (clean cutover, not a merge — confirmed with
-    // the user). clientSince is this pipeline's own start, NOT the old "Live
-    // leads" one — "Live leads"' 553 historical opportunities are no longer
-    // counted by this dashboard at all.
-    clientSince: "2026-09-21",
-    // Mapped 2026-09-21 via direct GHL API calls (no MCP server configured
-    // for this account yet). Location has 4 pipelines total: "Live leads"
-    // (553 opps, the previous pipeline — no longer tracked), "Need to called
-    // leads" (121, a separate worklist, never tracked), "Sold" (0 opps, dead
-    // end), and "New sales Pipeline" (the current one, brand new — only 1
-    // opportunity existed at the time of this switch).
+    // Switched 2026-10-06 per the user to a brand new GHL sub-account (new
+    // token + locationId) — the old location (uYz5w6CNq8dMcA7pnHua) and its
+    // pipelines are no longer used at all, same clean-cutover precedent as
+    // the 2026-09-21 switch.
+    ghlLocationId: "z1yj4xEySm3ZnyzNtNiM",
+    clientSince: "2026-10-06",
+    // Re-verified 2026-10-06 via direct GHL API calls (no MCP server for
+    // this new token yet). Two real pipelines: "Marketing Pipeline" (4
+    // opportunities, simple New Lead -> Contacted -> Qualified -> Proposal
+    // Sent -> Negotiation -> Closed, no appointment/disqualify concept) is
+    // NOT tracked here per the user 2026-10-06 ("deja solo la pestaña de
+    // meta ads") — only "Meta Ads" (0 opportunities at mapping time, brand
+    // new) is tracked, via callFunnel below.
     //
-    // "New sales Pipeline" stages: New Lead, Contacted, Unqualified,
-    // Appointment booked, In follow-up, Closed. Unlike "Live leads", this one
-    // has an actual "Closed" stage, so closedStageNames is set directly
-    // (still backed by the isClosedInRange won-status fallback too). No
-    // dedicated "Lost"/"Dead Lead" stage — only "Unqualified" — so
-    // disqualifiedStatuses keeps the same status-based fallback used for
-    // "Live leads".
+    // "Meta Ads" pipeline's stages are an exact match of Osland/McGuire
+    // Roofing's template (Appt Booked / Appt Confirmed / Appt Showed /
+    // Waiting for Quote / Quote Delivered / Quote Closed / Deposit Collected
+    // / Job Completed / Appt Cancelled / No Show/Ghosting / Quote Rejected /
+    // Long Term Nurture / Dead Lead / Out of Territory / Needs Follow Up) —
+    // the funnel below mirrors Osland/McGuire's own ghlQuoteSentStageNames/
+    // ghlClosedStageNames/ghlShowStageNames/ghlDisqualifiedStageNames/
+    // lostReasons one-for-one, just expressed as CallFunnelStageConfig
+    // instead (see note above for why). 0 real opportunities to validate
+    // against yet, so treat every assumption as provisional, same as
+    // McGuire's own note. "Form Submitted" is the only stage left out of
+    // every list below (not even dialsStageNames — see that field's own
+    // comment); "Attempted Contact (No Booking)" and "Needs Follow Up" are
+    // excluded from bookedStageNames (neither implies an appointment exists)
+    // but ARE included in dialsStageNames (both imply a dial happened).
     //
-    // Confirmed with the user 2026-09-21: this pipeline has no stage that
-    // reliably marks "showed up" (no equivalent of "Appointment Completed"),
-    // so Shows/No-Shows/Show Rate are intentionally left untracked
-    // (showStageNames/noShowStageNames empty) rather than approximated from
-    // "Appointment booked".
+    // No calendar-based appointment tracking here (unlike Osland/McGuire) —
+    // callFunnel has no calendar concept; "Appointments Booked" instead
+    // comes from bookedStageNames below (current-stage pipeline snapshot,
+    // same convention used for every other callFunnel client).
     //
-    // Scope still limited to the metrics the user asked for (Dials Made,
-    // Appointments Booked, Disqualified Rate, Closed) — no
-    // selfBookedTag/lostReasons configured, so those sections/cards stay
-    // hidden (see CallFunnelSnapshotSections — Self-Booked Rate only renders
-    // when hasMetaAds, which this client has none of anyway; the "Why It
-    // Didn't Close" breakdown only renders when lostReasons is set).
+    // Per the user 2026-10-06: track exactly 4 numbers — Dials Made, Appts
+    // Set (= Appointments Booked below), Job Closed (= Closed below), and
+    // Total Revenue Generated (= Revenue Closed headline, already built) —
+    // plus remove the Show Rate and Disqualified Rate cards (see
+    // CallFunnelSnapshotSections's hideShowRate/hideDisqualifiedRate props).
+    // Shows/No-Shows/Not Closed/Close Rate/the "Why It Didn't Close"
+    // breakdown weren't asked to be removed, so they stay.
+    //
+    // "Dials Made" = dialsStageNames below, a current-stage snapshot (NOT a
+    // createdAt count) starting at "Attempted Contact (No Booking)" per the
+    // user's explicit instruction, PLUS every downstream stage — same
+    // "reached this far" convention as bookedStageNames, since a lead who
+    // made it all the way to a booked appointment was obviously also dialed.
+    // Only "Form Submitted" (before any contact attempt) is excluded.
+    // Flag to the user if this over/undercounts once real volume builds up.
     callFunnel: {
       entryLabel: "Dials Made",
+      hideShowRate: true,
+      hideDisqualifiedRate: true,
       funnel: {
-        pipelineName: "New sales Pipeline",
-        bookedStageNames: ["Appointment booked", "In follow-up", "Closed"],
-        showStageNames: [],
-        noShowStageNames: [],
-        closedStageNames: ["Closed"],
-        notClosedStageNames: [],
-        disqualifiedStageNames: ["Unqualified"],
-        disqualifiedStatuses: ["lost", "abandoned"],
+        pipelineName: "Meta Ads",
+        dialsStageNames: [
+          "Attempted Contact (No Booking)",
+          "Appt Booked",
+          "Appt Confirmed",
+          "Appt Showed",
+          "Waiting for Quote",
+          "Quote Delivered",
+          "Quote Closed",
+          "Deposit Collected",
+          "Job Completed",
+          "Appt Cancelled",
+          "No Show/Ghosting",
+          "Quote Rejected",
+          "Long Term Nurture",
+          "Dead Lead",
+          "Out of Territory",
+          "Needs Follow Up",
+        ],
+        bookedStageNames: [
+          "Appt Booked",
+          "Appt Confirmed",
+          "Appt Showed",
+          "Waiting for Quote",
+          "Quote Delivered",
+          "Quote Closed",
+          "Deposit Collected",
+          "Job Completed",
+          "Appt Cancelled",
+          "No Show/Ghosting",
+          "Quote Rejected",
+        ],
+        showStageNames: [
+          "Appt Showed",
+          "Quote Delivered",
+          "Quote Closed",
+          "Deposit Collected",
+          "Job Completed",
+          "Quote Rejected",
+        ],
+        noShowStageNames: ["No Show/Ghosting"],
+        closedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+        notClosedStageNames: ["Quote Rejected"],
+        disqualifiedStageNames: ["Dead Lead"],
+        lostReasons: [
+          {
+            label: "Dead Lead",
+            description: "No longer viable — unresponsive or explicitly not interested.",
+            stageNames: ["Dead Lead"],
+          },
+          {
+            label: "Long Term Nurture",
+            description: "Not ready to buy yet — parked for future follow-up.",
+            stageNames: ["Long Term Nurture"],
+          },
+          {
+            label: "Out of Territory",
+            description: "Outside the serviceable area.",
+            stageNames: ["Out of Territory"],
+          },
+        ],
       },
     },
   },

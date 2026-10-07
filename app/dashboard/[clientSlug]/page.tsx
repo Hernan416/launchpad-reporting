@@ -163,7 +163,12 @@ export default async function ClientDashboardPage({
             </div>
           }
         >
-          <CallFunnelSnapshotSections reportPromise={reportPromise} entryLabel={client.callFunnel.entryLabel} />
+          <CallFunnelSnapshotSections
+            reportPromise={reportPromise}
+            entryLabel={client.callFunnel.entryLabel}
+            hideShowRate={client.callFunnel.hideShowRate}
+            hideDisqualifiedRate={client.callFunnel.hideDisqualifiedRate}
+          />
         </Suspense>
 
         <Suspense

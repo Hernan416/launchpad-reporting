@@ -23,9 +23,15 @@ import { LostReasonsBreakdown } from "@/components/sections/LostReasonsBreakdown
 export async function CallFunnelSnapshotSections({
   reportPromise,
   entryLabel,
+  hideShowRate,
+  hideDisqualifiedRate,
 }: {
   reportPromise: Promise<CallFunnelReport>;
   entryLabel?: string;
+  /** Hides the Headline group's "Show Rate" card — see ClientConfig.callFunnel.hideShowRate. */
+  hideShowRate?: boolean;
+  /** Hides the Funnel group's "Disqualified Rate" card — see ClientConfig.callFunnel.hideDisqualifiedRate. */
+  hideDisqualifiedRate?: boolean;
 }) {
   const report = await reportPromise;
 
@@ -63,13 +69,15 @@ export async function CallFunnelSnapshotSections({
               <HeadlineCard label="Ad Spend" value={formatCurrency(report.meta.spend)} />
             </>
           )}
-          <HeadlineCard
-            label="Show Rate"
-            value={formatPercent(report.metrics.showRate)}
-            sublabel={`${formatNumber(report.metrics.shows)}/${formatNumber(
-              report.metrics.shows + report.metrics.noShows
-            )} appointments shown`}
-          />
+          {!hideShowRate && (
+            <HeadlineCard
+              label="Show Rate"
+              value={formatPercent(report.metrics.showRate)}
+              sublabel={`${formatNumber(report.metrics.shows)}/${formatNumber(
+                report.metrics.shows + report.metrics.noShows
+              )} appointments shown`}
+            />
+          )}
           <HeadlineCard
             label="Close Rate"
             value={formatPercent(report.metrics.closeRate)}
@@ -118,12 +126,14 @@ export async function CallFunnelSnapshotSections({
         <MetricCard accent="gold" label="No-Shows" value={formatNumber(report.metrics.noShows)} />
         <MetricCard accent="gold" label="Not Closed" value={formatNumber(report.metrics.notClosed)} />
         <MetricCard accent="gold" label="Closed" value={formatNumber(report.metrics.closed)} />
-        <MetricCard
-          accent="gold"
-          label="Disqualified Rate"
-          value={formatPercent(report.metrics.disqualifiedRate)}
-          sublabel={`${formatNumber(report.metrics.disqualified)} disqualified`}
-        />
+        {!hideDisqualifiedRate && (
+          <MetricCard
+            accent="gold"
+            label="Disqualified Rate"
+            value={formatPercent(report.metrics.disqualifiedRate)}
+            sublabel={`${formatNumber(report.metrics.disqualified)} disqualified`}
+          />
+        )}
       </MetricGroup>
 
       {/* TEST / EASILY REMOVABLE — delete this block + the import above to pull it back out. */}

@@ -67,7 +67,10 @@ export async function GET(request: NextRequest) {
 
   const pdfBuffer = await renderToBuffer(
     CallFunnelReportDocument({
-      pipelineTitle: view ? view.name : "Combined",
+      // CallFunnelReportDocument no longer adds its own "Launchpad AI — "
+      // prefix (that was wrong for other callFunnel clients, e.g. Samaritan
+      // Contracting) — Launchpad's own route builds the full title itself.
+      pipelineTitle: `Launchpad AI — ${view ? view.name : "Combined"}`,
       entryLabel: view?.entryLabel,
       period,
       sinceLabel,

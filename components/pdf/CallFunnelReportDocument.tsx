@@ -88,11 +88,18 @@ function WeeklyTableRow({
 }
 
 /**
- * PDF export for the Launchpad AI dashboard (see
+ * PDF export for any callFunnel-based dashboard (see
  * components/sections/CallFunnelSnapshotSections.tsx, the on-screen
- * equivalent). `entryLabel`/`pipelineTitle` are undefined for the Combined
- * view — no Calls Made/Leads column and no Meta Ads section there either,
- * same rule as the live page (see getLaunchpadReport).
+ * equivalent) — shared by Launchpad AI's own pipelines (config/launchpad.ts)
+ * and any standard client with ClientConfig.callFunnel set (e.g. Samaritan
+ * Contracting). `pipelineTitle` is the FULL header text the caller wants
+ * shown (e.g. "Launchpad AI — Cold Call Sales" or just "Samaritan
+ * Contracting") — this component no longer adds its own "Launchpad AI — "
+ * prefix (fixed 2026-10-06: that prefix was wrong for Samaritan Contracting,
+ * a real client with no connection to Launchpad AI's own branding).
+ * `entryLabel`/`pipelineTitle` are undefined for Launchpad's Combined view —
+ * no Calls Made/Leads column and no Meta Ads section there either, same rule
+ * as the live page (see getLaunchpadReport).
  */
 export function CallFunnelReportDocument({
   pipelineTitle,
@@ -102,6 +109,7 @@ export function CallFunnelReportDocument({
   customRangeLabel,
   report,
   trends,
+  hideShowRate,
 }: {
   pipelineTitle: string;
   entryLabel?: string;
@@ -110,6 +118,8 @@ export function CallFunnelReportDocument({
   customRangeLabel?: string;
   report: CallFunnelReport;
   trends: WeeklyCallFunnelDataPoint[];
+  /** See ClientConfig.callFunnel.hideShowRate — mirrors the on-screen dashboard. There's no PDF equivalent of hideDisqualifiedRate: this document never had a Disqualified Rate card. */
+  hideShowRate?: boolean;
 }) {
   const columns = buildWeekColumns(entryLabel);
   const monthGroups = groupWeeksByMonth(trends);
@@ -121,12 +131,12 @@ export function CallFunnelReportDocument({
 
   return (
     <Document
-      title={`Launchpad AI — ${pipelineTitle} — ${periodLabel(period, sinceLabel, customRangeLabel)} Report`}
+      title={`${pipelineTitle} — ${periodLabel(period, sinceLabel, customRangeLabel)} Report`}
     >
       <Page size="A4" style={pdfStyles.page} wrap>
         <View style={pdfStyles.headerRow}>
           <View>
-            <Text style={pdfStyles.clientName}>Launchpad AI — {pipelineTitle}</Text>
+            <Text style={pdfStyles.clientName}>{pipelineTitle}</Text>
             <Text style={pdfStyles.reportSubtitle}>
               Performance Report — {periodLabel(period, sinceLabel, customRangeLabel)}
             </Text>
@@ -155,12 +165,14 @@ export function CallFunnelReportDocument({
               <MetricCard label="ROAS" value={formatMultiplier(report.meta.roas)} />
             </>
           )}
-          <MetricCard
-            label="Show Rate"
-            value={`${formatPercent(report.metrics.showRate)} (${formatNumber(report.metrics.shows)}/${formatNumber(
-              report.metrics.shows + report.metrics.noShows
-            )})`}
-          />
+          {!hideShowRate && (
+            <MetricCard
+              label="Show Rate"
+              value={`${formatPercent(report.metrics.showRate)} (${formatNumber(report.metrics.shows)}/${formatNumber(
+                report.metrics.shows + report.metrics.noShows
+              )})`}
+            />
+          )}
           <MetricCard
             label="Close Rate"
             value={`${formatPercent(report.metrics.closeRate)} (${formatNumber(report.metrics.closed)}/${formatNumber(report.metrics.shows)})`}

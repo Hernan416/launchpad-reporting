@@ -874,7 +874,7 @@ export async function getPipelineFunnelStats(
 }
 
 export interface CallFunnelStats {
-  /** Every opportunity CREATED in the pipeline during the period — one call/contact made, same "leads" convention as GhlSalesStats.leads. */
+  /** Every opportunity CREATED in the pipeline during the period — one call/contact made, same "leads" convention as GhlSalesStats.leads. Stage-based instead (current-stage snapshot) when funnel.dialsStageNames is set — see getCallFunnelStats. */
   callsMade: number;
   appointmentsBooked: number;
   shows: number;
@@ -968,7 +968,12 @@ export async function getCallFunnelStats(
   });
 
   return {
-    callsMade: callOpportunities.length,
+    // When dialsStageNames is set (e.g. Samaritan Contracting's "Attempted
+    // Contact (No Booking)" onward), "Dials Made" is a current-stage
+    // snapshot like every other category below, NOT a createdAt count — a
+    // lead can only be marked as dialed once someone actually attempts the
+    // call, which may happen well after the opportunity was first created.
+    callsMade: funnel.dialsStageNames ? inStages(funnel.dialsStageNames).length : callOpportunities.length,
     appointmentsBooked: inStages(funnel.bookedStageNames).length,
     shows: inStages(funnel.showStageNames).length,
     noShows: inStages(funnel.noShowStageNames).length,
@@ -1010,6 +1015,8 @@ export async function getWeeklyCallFunnelStats(
   const noShowSet = new Set(funnel.noShowStageNames);
   const notClosedSet = new Set(funnel.notClosedStageNames);
   const closedSet = new Set(funnel.closedStageNames);
+  // See getCallFunnelStats — stage-based, not createdAt-based, when set.
+  const dialsSet = funnel.dialsStageNames ? new Set(funnel.dialsStageNames) : null;
 
   const result: WeeklyCallFunnelStats[] = buckets.map((b) => ({
     weekIndex: b.index,
@@ -1023,9 +1030,6 @@ export async function getWeeklyCallFunnelStats(
   }));
 
   for (const opp of allOpportunities) {
-    const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
-    if (createdIdx !== null) result[createdIdx].callsMade += 1;
-
     const stageIdx = opp.lastStageChangeAt
       ? bucketIndexForDate(new Date(opp.lastStageChangeAt), buckets)
       : null;
@@ -1035,6 +1039,12 @@ export async function getWeeklyCallFunnelStats(
       if (showSet.has(stageName)) result[stageIdx].shows += 1;
       if (noShowSet.has(stageName)) result[stageIdx].noShows += 1;
       if (notClosedSet.has(stageName)) result[stageIdx].notClosed += 1;
+      if (dialsSet && dialsSet.has(stageName)) result[stageIdx].callsMade += 1;
+    }
+
+    if (!dialsSet) {
+      const createdIdx = opp.createdAt ? bucketIndexForDate(new Date(opp.createdAt), buckets) : null;
+      if (createdIdx !== null) result[createdIdx].callsMade += 1;
     }
 
     // Independent of stageIdx above — see closedBucketIndex.

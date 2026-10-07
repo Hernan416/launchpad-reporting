@@ -76,6 +76,10 @@ export interface ClientConfig {
     /** "Leads" / "Calls Made" / "Dials Made" — whatever vocabulary this client uses for "opportunities created this period". */
     entryLabel: string;
     funnel: CallFunnelStageConfig;
+    /** Hides the Headline group's "Show Rate" card — e.g. Samaritan Contracting 2026-10-06, which only wants Dials Made/Appointments Booked/Closed/Revenue tracked. Shows/No-Shows themselves still render; only the rate card is hidden. */
+    hideShowRate?: boolean;
+    /** Hides the Funnel group's "Disqualified Rate" card — same 2026-10-06 request. The "Why It Didn't Close" breakdown (if lostReasons is configured) is unaffected. */
+    hideDisqualifiedRate?: boolean;
   };
   /** ISO date (YYYY-MM-DD) this client started working with us — the anchor for the "lifetime" period. The Lifetime option in PeriodToggle is only shown when this is set. */
   clientSince?: string;
@@ -239,6 +243,18 @@ export interface WeeklyPipelineDataPoint {
  */
 export interface CallFunnelStageConfig {
   pipelineName: string;
+  /**
+   * When set, "Dials Made" (the entryLabel metric) is a current-stage
+   * snapshot over these stages instead of the default createdAt count of
+   * every opportunity created in the period — needed when a pipeline has a
+   * dedicated "attempted to contact" stage (e.g. Samaritan Contracting's
+   * "Attempted Contact (No Booking)"), since a lead isn't "dialed" just
+   * because an opportunity exists for them. Every stage from that point
+   * onward should normally be included (same "reached this far" convention
+   * as bookedStageNames) — a lead that got all the way to a booked
+   * appointment was obviously also dialed at some point.
+   */
+  dialsStageNames?: string[];
   /** Every stage from "an appointment exists" onward, current-stage snapshot — mirrors ghlShowStageNames' "reached this far" convention. */
   bookedStageNames: string[];
   /** Showed up, regardless of what happened after (includes Not Closed/Closed, not just the "Showed" stage itself). */
