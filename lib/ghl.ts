@@ -886,6 +886,8 @@ export interface CallFunnelStats {
   selfBooked: number;
   /** Disqualified (funnel.disqualifiedStageNames) — 0 when not configured. */
   disqualified: number;
+  /** Current-stage snapshot at funnel.secondCallBookingStageNames — 0 when not configured. */
+  secondCallBooking: number;
   /** TEST / EASILY REMOVABLE — total opportunities ever created in this pipeline (not period-scoped) — the fetch already spans floor..endTime and endTime is never before "now" for any period, see getCallFunnelStats. */
   totalLeadsEver: number;
   /** TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons. */
@@ -982,6 +984,9 @@ export async function getCallFunnelStats(
     closedRevenue: closedOpportunities.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0),
     selfBooked,
     disqualified,
+    secondCallBooking: funnel.secondCallBookingStageNames
+      ? inStages(funnel.secondCallBookingStageNames).length
+      : 0,
     totalLeadsEver: allOpportunities.length,
     lostReasons,
   };

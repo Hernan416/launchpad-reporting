@@ -611,6 +611,9 @@ export const clients: ClientConfig[] = [
       entryLabel: "Dials Made",
       hideShowRate: true,
       hideDisqualifiedRate: true,
+      // This pipeline has no "2nd call" stage of its own — hide the card
+      // rather than show a permanent 0 (see CallFunnelStageConfig.secondCallBookingStageNames).
+      hideSecondCallBooking: true,
       funnel: {
         pipelineName: "Meta Ads",
         dialsStageNames: [

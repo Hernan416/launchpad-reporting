@@ -92,6 +92,10 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
       noShowStageNames: ["No-Showed"],
       closedStageNames: ["Closed"],
       notClosedStageNames: ["Not Closed"],
+      // Confirmed with the user 2026-10-09: this pipeline's "2nd call"
+      // stage is named "2nd Closing Call" (verified via the GHL API against
+      // the real "Roofing Ads 2026" pipeline, id wb3Uw4SBcCSexZsJgoDi).
+      secondCallBookingStageNames: ["2nd Closing Call"],
     },
   },
   {
@@ -148,6 +152,10 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
       noShowStageNames: ["No-Showed"],
       closedStageNames: ["Closed"],
       notClosedStageNames: ["Not Closed"],
+      // Confirmed with the user 2026-10-09: this pipeline's "2nd call"
+      // stage is named "2nd Call Booked" (verified via the GHL API against
+      // the real "Cold Call Sales" pipeline, id wW0qN1WKd5umPopC6T1k).
+      secondCallBookingStageNames: ["2nd Call Booked"],
     },
   },
 ];

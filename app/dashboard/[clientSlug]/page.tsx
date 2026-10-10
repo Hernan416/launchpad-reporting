@@ -168,6 +168,7 @@ export default async function ClientDashboardPage({
             entryLabel={client.callFunnel.entryLabel}
             hideShowRate={client.callFunnel.hideShowRate}
             hideDisqualifiedRate={client.callFunnel.hideDisqualifiedRate}
+            hideSecondCallBooking={client.callFunnel.hideSecondCallBooking}
           />
         </Suspense>
 

@@ -80,6 +80,8 @@ export interface ClientConfig {
     hideShowRate?: boolean;
     /** Hides the Funnel group's "Disqualified Rate" card — same 2026-10-06 request. The "Why It Didn't Close" breakdown (if lostReasons is configured) is unaffected. */
     hideDisqualifiedRate?: boolean;
+    /** Hides the Funnel group's "2nd Call Booking" card — for a client whose funnel has no equivalent stage configured (e.g. Samaritan Contracting). Default (undefined/false) shows the card. */
+    hideSecondCallBooking?: boolean;
   };
   /** ISO date (YYYY-MM-DD) this client started working with us — the anchor for the "lifetime" period. The Lifetime option in PeriodToggle is only shown when this is set. */
   clientSince?: string;
@@ -268,6 +270,14 @@ export interface CallFunnelStageConfig {
   /** Stages counted toward Disqualified Rate (e.g. "Application Disqualified" + "Disqualified" — two different disqualification points in the Roofing Ads 2026 funnel). */
   disqualifiedStageNames?: string[];
   /**
+   * Current-stage snapshot count of leads sitting at a "2nd call" booking
+   * stage — a follow-up call booked after the first appointment, distinct
+   * per pipeline's own vocabulary (e.g. "2nd Closing Call" on Roofing Ads
+   * 2026, "2nd Call Booked" on Cold Call Sales — confirmed with the user
+   * 2026-10-09). 0/omitted when a pipeline has no such stage.
+   */
+  secondCallBookingStageNames?: string[];
+  /**
    * Opportunity `status` values (GHL's "lost"/"abandoned"/etc.) that ALSO
    * count toward Disqualified Rate regardless of current pipelineStageId —
    * mirrors closedStageNames' own won-status fallback (see isClosedInRange
@@ -318,6 +328,8 @@ export interface CallFunnelMetrics {
   disqualified: number;
   /** disqualified ÷ callsMade. */
   disqualifiedRate: number;
+  /** Current-stage snapshot count at funnel.secondCallBookingStageNames — 0 when not configured. */
+  secondCallBooking: number;
 }
 
 /**

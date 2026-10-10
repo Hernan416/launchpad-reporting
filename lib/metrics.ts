@@ -449,22 +449,25 @@ const EMPTY_CALL_FUNNEL_STATS: CallFunnelStats = {
   closedRevenue: 0,
   selfBooked: 0,
   disqualified: 0,
+  secondCallBooking: 0,
   totalLeadsEver: 0,
   lostReasons: [],
 };
 
 type WeeklyLikeCallFunnelStats = Omit<
   CallFunnelStats,
-  "selfBooked" | "disqualified" | "totalLeadsEver" | "lostReasons"
+  "selfBooked" | "disqualified" | "secondCallBooking" | "totalLeadsEver" | "lostReasons"
 > & {
   selfBooked?: number;
   disqualified?: number;
+  secondCallBooking?: number;
 };
 
-/** Weekly stats have no selfBooked/disqualified fields (snapshot-only metrics, see CallFunnelSnapshotSections) — default to 0 there. */
+/** Weekly stats have no selfBooked/disqualified/secondCallBooking fields (snapshot-only metrics, see CallFunnelSnapshotSections) — default to 0 there. */
 function buildCallFunnelMetrics(stats: WeeklyLikeCallFunnelStats) {
   const selfBooked = stats.selfBooked ?? 0;
   const disqualified = stats.disqualified ?? 0;
+  const secondCallBooking = stats.secondCallBooking ?? 0;
   return {
     callsMade: stats.callsMade,
     appointmentsBooked: stats.appointmentsBooked,
@@ -479,10 +482,11 @@ function buildCallFunnelMetrics(stats: WeeklyLikeCallFunnelStats) {
     selfBookedRate: safeDivide(selfBooked, stats.callsMade),
     disqualified,
     disqualifiedRate: safeDivide(disqualified, stats.callsMade),
+    secondCallBooking,
   };
 }
 
-/** b may be a weekly stats row (no selfBooked/disqualified fields, see WeeklyCallFunnelStats) — defaults to 0 there. */
+/** b may be a weekly stats row (no selfBooked/disqualified/secondCallBooking fields, see WeeklyCallFunnelStats) — defaults to 0 there. */
 function sumCallFunnelStats(a: CallFunnelStats, b: WeeklyLikeCallFunnelStats): CallFunnelStats {
   return {
     callsMade: a.callsMade + b.callsMade,
@@ -494,6 +498,7 @@ function sumCallFunnelStats(a: CallFunnelStats, b: WeeklyLikeCallFunnelStats): C
     closedRevenue: a.closedRevenue + b.closedRevenue,
     selfBooked: a.selfBooked + (b.selfBooked ?? 0),
     disqualified: a.disqualified + (b.disqualified ?? 0),
+    secondCallBooking: a.secondCallBooking + (b.secondCallBooking ?? 0),
     // TEST / EASILY REMOVABLE — not merged across pipelines (Combined never builds a lostReasons breakdown, see getLaunchpadReport).
     totalLeadsEver: a.totalLeadsEver,
     lostReasons: a.lostReasons,

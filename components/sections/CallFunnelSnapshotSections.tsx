@@ -25,6 +25,7 @@ export async function CallFunnelSnapshotSections({
   entryLabel,
   hideShowRate,
   hideDisqualifiedRate,
+  hideSecondCallBooking,
 }: {
   reportPromise: Promise<CallFunnelReport>;
   entryLabel?: string;
@@ -32,6 +33,8 @@ export async function CallFunnelSnapshotSections({
   hideShowRate?: boolean;
   /** Hides the Funnel group's "Disqualified Rate" card — see ClientConfig.callFunnel.hideDisqualifiedRate. */
   hideDisqualifiedRate?: boolean;
+  /** Hides the Funnel group's "2nd Call Booking" card — see ClientConfig.callFunnel.hideSecondCallBooking. */
+  hideSecondCallBooking?: boolean;
 }) {
   const report = await reportPromise;
 
@@ -126,6 +129,13 @@ export async function CallFunnelSnapshotSections({
         <MetricCard accent="gold" label="No-Shows" value={formatNumber(report.metrics.noShows)} />
         <MetricCard accent="gold" label="Not Closed" value={formatNumber(report.metrics.notClosed)} />
         <MetricCard accent="gold" label="Closed" value={formatNumber(report.metrics.closed)} />
+        {!hideSecondCallBooking && (
+          <MetricCard
+            accent="gold"
+            label="2nd Call Booking"
+            value={formatNumber(report.metrics.secondCallBooking)}
+          />
+        )}
         {!hideDisqualifiedRate && (
           <MetricCard
             accent="gold"
