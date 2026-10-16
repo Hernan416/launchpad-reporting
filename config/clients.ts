@@ -679,6 +679,88 @@ export const clients: ClientConfig[] = [
       },
     },
   },
+  {
+    slug: "my-local-roofer",
+    name: "My Local Roofer",
+    metaAdAccountId: "act_1614045010266696",
+    // Verified 2026-10-14: act_1614045010266696 resolves and a real Insights
+    // fetch returns spend/clicks/actions for this client's own System User
+    // access (not the agency's Business Manager — separate account).
+    //
+    // Same symptom as One Day Roofing: this client's leads come from Facebook
+    // Instant Forms, not a landing page. Real 30d data pulled 2026-10-14 had
+    // 16 GHL opportunities created vs. only 11 landing_page_view actions
+    // (leads > landing_page_view pushes Opt-in Rate over 100%), while
+    // link_click (179 in the same window) is comfortably above lead volume —
+    // same fix as One Day Roofing.
+    metaLandingPageViewActionType: "link_click",
+    ghlLocationId: "Wf13H84Ve6Slfu8oX1aP",
+    // Mapped 2026-10-14 via direct GHL API calls (no MCP server for this
+    // token yet). Single pipeline "Meta Ads" (created 2026-09-24), stage set
+    // is an exact match of Osland/McGuire Roofing's template — confirmed via
+    // GHL's per-stage `originId` field, same as those two. (The calendar
+    // widget slugs below literally contain the string "osland" — leftover
+    // naming debris from whatever snapshot this location was cloned from
+    // when it was set up, not a sign this is actually Osland's account;
+    // confirmed via GET /locations/{id}, name = "My Local Roofer INC".)
+    //
+    // Only 16 real opportunities exist so far (all created within the last
+    // few days, campaign just ramping up), sitting at "Form Submitted" (1),
+    // "Attempted Contact (No Booking)" (13), "Appt Booked" (2) — ZERO have
+    // reached a quote/show/close stage yet, so (same caveat as Osland/
+    // McGuire at onboarding) the stage mapping below is template-based, not
+    // yet validated against real quote/close data. Revisit once volume
+    // builds up.
+    //
+    // Two real calendars: "Assisted Booking" (0 events so far) and
+    // "In-person Roof Inspection" (2 events) — following the Osland/McGuire
+    // naming convention, "In-person Roof Inspection" is treated as the
+    // self-serve widget one and "Assisted Booking" as rep-assisted, but this
+    // is UNCONFIRMED with the client (Osland's own version of this same
+    // assumption wasn't confirmed until well after onboarding) — verify once
+    // real bookings start coming through.
+    ghlCalendarIds: ["ZSlIyLZdqJRvIC5agYAB", "nvX0k91Yy0vJcvp5YOur"],
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+    ghlShowStageNames: [
+      "Appt Showed",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    selfBookedCalendarIds: ["nvX0k91Yy0vJcvp5YOur"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable). "Needs
+    // Follow Up" excluded from every list above, same as Osland/McGuire —
+    // its business meaning hasn't been confirmed with this client.
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
+    ],
+  },
 ];
 
 export function getClientBySlug(slug: string): ClientConfig | undefined {

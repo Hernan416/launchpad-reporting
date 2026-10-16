@@ -24,6 +24,10 @@ Current clients (see `config/clients.ts`):
 | `one-day-roofing` | One Day Roofing | Standard (Meta Ads + GHL) |
 | `us-home-pro` | US Home Pro | Standard (Meta Ads + GHL) |
 | `jj-roofing` | JJ Roofing | Standard (Meta Ads + GHL) |
+| `osland-roofing` | Osland Roofing | Standard (Meta Ads + GHL) |
+| `mcguire-roofing` | McGuire Roofing | Standard (Meta Ads + GHL) |
+| `samaritan-contracting` | Samaritan Contracting | Custom call-funnel (no Meta Ads section) |
+| `my-local-roofer` | My Local Roofer | Standard (Meta Ads + GHL) |
 
 ## 2. Tech stack & non-negotiable constraints
 
