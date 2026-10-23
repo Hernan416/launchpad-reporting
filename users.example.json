@@ -9,5 +9,11 @@
     "passwordHash": "$2b$10$REPLACE_ME",
     "role": "client",
     "clientSlug": "excel-roofing"
+  },
+  {
+    "username": "Multi_Client_Example",
+    "passwordHash": "$2b$10$REPLACE_ME",
+    "role": "client",
+    "clientSlugs": ["one-day-roofing", "jj-roofing"]
   }
 ]

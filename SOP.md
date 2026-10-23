@@ -133,7 +133,16 @@ database**. Login is **username + password** (changed from email+password
 stale).
 
 - `APP_USERS_BASE64` env var = base64-encoded JSON array of
-  `{ username, passwordHash, role, clientSlug?, name? }`.
+  `{ username, passwordHash, role, clientSlug?, clientSlugs?, name? }`.
+- A `"client"` role user normally gets one `clientSlug`. For a user who
+  needs more than one client (e.g. an agency contact covering several
+  accounts, added 2026-10-23 for a user covering One Day Roofing + JJ
+  Roofing), use `clientSlugs: string[]` instead — it takes precedence over
+  `clientSlug` when both are set. `lib/auth.ts`'s `getAllowedClientSlugs()`
+  is the single place that resolves either shape into the slug list
+  `proxy.ts`/the dashboard pages/the PDF export route all check against;
+  `ClientNav` renders a restricted switcher (no "All Clients"/"Launchpad AI"
+  links) for a multi-slug client user instead of the master's full nav.
 - **Why base64 and not raw JSON in the env var**: bcrypt hashes contain `$`
   characters (`$2b$10$...`). Next.js's `.env` loader treats `$word` as
   variable interpolation and silently strips it if the variable doesn't

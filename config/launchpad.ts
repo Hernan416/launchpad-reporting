@@ -133,11 +133,22 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
           stageNames: ["Territory Taken"],
         },
         {
+          // Stage renamed in GHL from "Long Term Nurture" to "Long Term
+          // Nurture (Set)" 2026-10-23 — confirmed with the user it's still
+          // the same "not ready to buy yet, parked" bucket, not a new
+          // concept, so it stays a lost reason under the same label.
           label: "Long Term Nurture",
           description: "Not ready to buy yet — parked for future follow-up.",
-          stageNames: ["Long Term Nurture"],
+          stageNames: ["Long Term Nurture (Set)"],
         },
       ],
+      // "Not Closed" was removed from this pipeline in GHL 2026-10-23 (along
+      // with "Contacted", which was never tracked here). Confirmed with the
+      // user: nothing replaces it — Shows and the Not Closed metric just
+      // reflect that going forward, rather than folding showed-but-undecided
+      // leads into the new "Long Term Nurture (Set)"/"Long Term Nurture
+      // Close" stages (also added 2026-10-23; the latter isn't mapped to any
+      // metric here per the user — explicitly not tracked as Closed).
       bookedStageNames: [
         "Booked",
         "Confirmed",
@@ -145,13 +156,12 @@ export const launchpadPipelines: CallPipelineViewConfig[] = [
         "Showed",
         "No-Showed",
         "Cancelled",
-        "Not Closed",
         "Closed",
       ],
-      showStageNames: ["Showed", "Not Closed", "Closed"],
+      showStageNames: ["Showed", "Closed"],
       noShowStageNames: ["No-Showed"],
       closedStageNames: ["Closed"],
-      notClosedStageNames: ["Not Closed"],
+      notClosedStageNames: [],
       // Confirmed with the user 2026-10-09: this pipeline's "2nd call"
       // stage is named "2nd Call Booked" (verified via the GHL API against
       // the real "Cold Call Sales" pipeline, id wW0qN1WKd5umPopC6T1k).

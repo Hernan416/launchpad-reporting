@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth, getAllowedClientSlugs } from "@/lib/auth";
 
 export default async function RootPage() {
   const session = await auth();
@@ -12,5 +12,5 @@ export default async function RootPage() {
     redirect("/dashboard");
   }
 
-  redirect(`/dashboard/${session.user.clientSlug}`);
+  redirect(`/dashboard/${getAllowedClientSlugs(session.user)[0]}`);
 }

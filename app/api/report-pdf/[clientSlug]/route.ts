@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { auth } from "@/lib/auth";
+import { auth, getAllowedClientSlugs } from "@/lib/auth";
 import { getClientBySlug } from "@/config/clients";
 import {
   getClientCallFunnelReport,
@@ -36,7 +36,7 @@ export async function GET(
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
-  if (session.user.role === "client" && session.user.clientSlug !== clientSlug) {
+  if (session.user.role === "client" && !getAllowedClientSlugs(session.user).includes(clientSlug)) {
     return new Response("Forbidden", { status: 403 });
   }
 

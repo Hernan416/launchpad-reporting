@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, getAllowedClientSlugs } from "@/lib/auth";
 
 // Next.js 16 renamed the `middleware.ts` file convention to `proxy.ts`.
 export default auth((req) => {
@@ -12,13 +12,15 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  const { role, clientSlug } = session.user;
+  const { role } = session.user;
   const requestedSlug = pathname.split("/")[2];
+  const allowedSlugs = getAllowedClientSlugs(session.user);
 
-  // A "client" role may only view their own slug; redirect them there otherwise.
-  if (role === "client" && requestedSlug !== clientSlug) {
+  // A "client" role may only view their own slug(s); redirect them to the
+  // first one otherwise.
+  if (role === "client" && !allowedSlugs.includes(requestedSlug)) {
     return NextResponse.redirect(
-      new URL(`/dashboard/${clientSlug}`, req.url)
+      new URL(`/dashboard/${allowedSlugs[0]}`, req.url)
     );
   }
 });

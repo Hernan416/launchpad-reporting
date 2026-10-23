@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth, getAllowedClientSlugs } from "@/lib/auth";
 import { clients } from "@/config/clients";
 import { DashboardShell } from "@/components/DashboardShell";
 
@@ -16,7 +16,7 @@ export default async function MasterDashboardPage() {
   // Defense in depth: proxy.ts already redirects "client" role users to
   // their own slug, but a page should never trust routing alone.
   if (session.user.role !== "master") {
-    redirect(`/dashboard/${session.user.clientSlug}`);
+    redirect(`/dashboard/${getAllowedClientSlugs(session.user)[0]}`);
   }
 
   return (

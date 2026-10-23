@@ -5,12 +5,15 @@ declare module "next-auth" {
   interface User {
     role: Role;
     clientSlug?: string;
+    /** Multi-client access — see AppUser.clientSlugs. */
+    clientSlugs?: string[];
   }
 
   interface Session {
     user: {
       role: Role;
       clientSlug?: string;
+      clientSlugs?: string[];
     } & DefaultSession["user"];
   }
 }
@@ -23,5 +26,6 @@ declare module "@auth/core/jwt" {
   interface JWT {
     role: Role;
     clientSlug?: string;
+    clientSlugs?: string[];
   }
 }

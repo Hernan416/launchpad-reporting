@@ -4,8 +4,10 @@ export interface AppUser {
   username: string;
   passwordHash: string;
   role: Role;
-  /** Required when role is "client". Must match a slug in config/clients.ts */
+  /** Required when role is "client" and the user only needs one client. Must match a slug in config/clients.ts. */
   clientSlug?: string;
+  /** Use instead of clientSlug when a "client" role user needs access to more than one client (e.g. an agency contact covering several accounts) — must all match slugs in config/clients.ts. Takes precedence over clientSlug when both are set. */
+  clientSlugs?: string[];
   name?: string;
 }
 

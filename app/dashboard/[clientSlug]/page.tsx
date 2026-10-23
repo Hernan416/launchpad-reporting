@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { getClientBySlug } from "@/config/clients";
+import { auth, getAllowedClientSlugs } from "@/lib/auth";
+import { getClientBySlug, clients } from "@/config/clients";
 import {
   getClientCallFunnelReport,
   getClientCallFunnelTrends,
@@ -54,9 +54,10 @@ export default async function ClientDashboardPage({
   }
 
   // Defense in depth: proxy.ts already restricts "client" role users to
-  // their own slug, but a page should never trust routing alone.
-  if (session.user.role === "client" && session.user.clientSlug !== clientSlug) {
-    redirect(`/dashboard/${session.user.clientSlug}`);
+  // their own slug(s), but a page should never trust routing alone.
+  const allowedSlugs = getAllowedClientSlugs(session.user);
+  if (session.user.role === "client" && !allowedSlugs.includes(clientSlug)) {
+    redirect(`/dashboard/${allowedSlugs[0]}`);
   }
 
   const client = getClientBySlug(clientSlug);
@@ -126,8 +127,20 @@ export default async function ClientDashboardPage({
   // periodToRange/getMetaInsights, which need both when period is "custom".
   const rangeQuery = period === "custom" && customRange ? `&from=${customRange.from}&to=${customRange.to}` : "";
 
+  // Master sees every client + the internal Launchpad AI dashboard; a
+  // multi-client "client" role user (see AppUser.clientSlugs) only sees a
+  // switcher for the handful of slugs they're actually allowed into.
   const topNav =
-    session.user.role === "master" ? <ClientNav currentSlug={clientSlug} /> : undefined;
+    session.user.role === "master" ? (
+      <ClientNav currentSlug={clientSlug} />
+    ) : allowedSlugs.length > 1 ? (
+      <ClientNav
+        currentSlug={clientSlug}
+        clients={clients.filter((c) => allowedSlugs.includes(c.slug))}
+        showAllClientsLink={false}
+        showLaunchpadLink={false}
+      />
+    ) : undefined;
 
   // Clients with a single call-center-style GHL pipeline and no Meta Ads at
   // all (e.g. Samaritan Contracting) get the same CallFunnelReport model
