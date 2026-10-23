@@ -761,6 +761,169 @@ export const clients: ClientConfig[] = [
       },
     ],
   },
+  {
+    slug: "elite-construction",
+    name: "Elite Construction",
+    metaAdAccountId: "act_2154794542082290",
+    // Verified 2026-10-23: resolves (name "Elite Construction Contracting"),
+    // but zero campaigns/insights of any kind exist yet via META_ACCESS_TOKEN
+    // — brand new account, not actually running ads yet. Not a permissions
+    // error (the account object itself fetches fine); revisit once real
+    // spend starts.
+    //
+    // clientSince not set yet — ask the user for this client's actual start
+    // date once known (hides the Lifetime period option until then, same as
+    // every other client before its own date was confirmed).
+    ghlLocationId: "cdmnPMEMpHxxD4Z86scc",
+    // Mapped 2026-10-23 via direct GHL API calls (no MCP server for this
+    // token yet). Single pipeline "Meta Ads", 0 opportunities — brand new
+    // account. Stage set and calendar names/widgetSlugs are an exact clone
+    // of Osland Roofing's template (same per-stage `originId`s, and the
+    // calendar widgetSlugs literally contain the string "osland" — leftover
+    // naming debris from the snapshot this location was cloned from, same
+    // pattern already seen at McGuire Roofing and My Local Roofer, not a
+    // sign this is actually Osland's account). Config below mirrors that
+    // template one-for-one; there is zero real data to validate any of it
+    // against yet, so treat every assumption here as provisional until real
+    // leads start flowing through — same caveat as every other client
+    // onboarded from this same template with no volume yet.
+    //
+    // Two calendars, both currently inactive (isActive: false) and 0 events
+    // (unsurprising — 0 opportunities too): "Assisted Booking"
+    // (gV6BM3KzZUR1c8d5PDaf) and "In-person Roof Inspection"
+    // (k9GKTcgw8pHZ7nQCYJ4o). Following the Osland/McGuire/My Local Roofer
+    // naming convention, "In-person Roof Inspection" is treated as the
+    // self-serve widget one and "Assisted Booking" as rep-assisted — this is
+    // UNCONFIRMED with the client, same as at My Local Roofer; verify once
+    // real bookings start coming through.
+    ghlCalendarIds: ["gV6BM3KzZUR1c8d5PDaf", "k9GKTcgw8pHZ7nQCYJ4o"],
+    ghlPipelineName: "Meta Ads",
+    ghlQuoteSentStageNames: [
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    ghlClosedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+    ghlShowStageNames: [
+      "Appt Showed",
+      "Quote Delivered",
+      "Quote Closed",
+      "Deposit Collected",
+      "Job Completed",
+      "Quote Rejected",
+    ],
+    selfBookedCalendarIds: ["k9GKTcgw8pHZ7nQCYJ4o"],
+    // No dedicated "Disqualified" stage exists in this template — "Dead
+    // Lead" is the closest equivalent (never converted / not viable). "Needs
+    // Follow Up" excluded from every list above, same as every other client
+    // on this template — its business meaning hasn't been confirmed.
+    ghlDisqualifiedStageNames: ["Dead Lead"],
+    lostReasons: [
+      {
+        label: "Dead Lead",
+        description: "No longer viable — unresponsive or explicitly not interested.",
+        stageNames: ["Dead Lead"],
+      },
+      {
+        label: "Long Term Nurture",
+        description: "Not ready to buy yet — parked for future follow-up.",
+        stageNames: ["Long Term Nurture"],
+      },
+      {
+        label: "Out of Territory",
+        description: "Outside the serviceable area.",
+        stageNames: ["Out of Territory"],
+      },
+    ],
+  },
+  {
+    slug: "daypro-roofing",
+    name: "DayPro Roofing",
+    // No Meta Ads for this client, per the user 2026-10-23 — never read,
+    // since callFunnel below replaces the standard Meta+GHL report entirely
+    // (same reasoning as Samaritan Contracting: ClientReport.meta is NOT
+    // optional, so the standard dashboard would render Meta Ads cards with a
+    // failed-fetch warning even with this field blank — callFunnel's
+    // CallFunnelReport.meta IS optional and never gets set, so those cards
+    // stay hidden entirely).
+    metaAdAccountId: "",
+    ghlLocationId: "xc49qg8qVf36XQu48HTt",
+    // Mapped 2026-10-23 via direct GHL API calls (no MCP server for this
+    // token yet). Single pipeline, named "Meta Ads" in GHL despite this
+    // client not actually running Meta Ads — same stage set, same per-stage
+    // `originId`s as Osland/McGuire/Elite Construction's template, 0
+    // opportunities (brand new account). Config below mirrors that template
+    // one-for-one via CallFunnelStageConfig (see Samaritan Contracting's own
+    // note above for why callFunnel instead of the plain ghl* fields), minus
+    // Samaritan's own hideShowRate/hideDisqualifiedRate (those were a
+    // Samaritan-specific request, not a template default) — there is zero
+    // real data to validate any of this against yet, so treat every
+    // assumption here as provisional.
+    //
+    // No calendar-based appointment tracking (callFunnel has no calendar
+    // concept) — "Appointments Booked" comes from bookedStageNames below
+    // (current-stage pipeline snapshot), same convention as every other
+    // callFunnel client.
+    //
+    // entryLabel "Leads" (not "Dials Made" like Launchpad's own Cold Call
+    // Sales/Samaritan) since this is a lead-gen funnel (starts at "Form
+    // Submitted"), not a cold-calling one — dialsStageNames left unset so
+    // the count is the default createdAt count of every opportunity created
+    // in the period, matching "Leads" semantics elsewhere in this codebase.
+    callFunnel: {
+      entryLabel: "Leads",
+      // This template has no "2nd call" stage — hide the card rather than
+      // show a permanent 0 (same reasoning as Samaritan Contracting).
+      hideSecondCallBooking: true,
+      funnel: {
+        pipelineName: "Meta Ads",
+        bookedStageNames: [
+          "Appt Booked",
+          "Appt Confirmed",
+          "Appt Showed",
+          "Waiting for Quote",
+          "Quote Delivered",
+          "Quote Closed",
+          "Deposit Collected",
+          "Job Completed",
+          "Appt Cancelled",
+          "No Show/Ghosting",
+          "Quote Rejected",
+        ],
+        showStageNames: [
+          "Appt Showed",
+          "Quote Delivered",
+          "Quote Closed",
+          "Deposit Collected",
+          "Job Completed",
+          "Quote Rejected",
+        ],
+        noShowStageNames: ["No Show/Ghosting"],
+        closedStageNames: ["Quote Closed", "Deposit Collected", "Job Completed"],
+        notClosedStageNames: ["Quote Rejected"],
+        disqualifiedStageNames: ["Dead Lead"],
+        lostReasons: [
+          {
+            label: "Dead Lead",
+            description: "No longer viable — unresponsive or explicitly not interested.",
+            stageNames: ["Dead Lead"],
+          },
+          {
+            label: "Long Term Nurture",
+            description: "Not ready to buy yet — parked for future follow-up.",
+            stageNames: ["Long Term Nurture"],
+          },
+          {
+            label: "Out of Territory",
+            description: "Outside the serviceable area.",
+            stageNames: ["Out of Territory"],
+          },
+        ],
+      },
+    },
+  },
 ];
 
 export function getClientBySlug(slug: string): ClientConfig | undefined {

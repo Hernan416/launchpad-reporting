@@ -28,6 +28,8 @@ Current clients (see `config/clients.ts`):
 | `mcguire-roofing` | McGuire Roofing | Standard (Meta Ads + GHL) |
 | `samaritan-contracting` | Samaritan Contracting | Custom call-funnel (no Meta Ads section) |
 | `my-local-roofer` | My Local Roofer | Standard (Meta Ads + GHL) |
+| `elite-construction` | Elite Construction | Standard (Meta Ads + GHL) |
+| `daypro-roofing` | DayPro Roofing | Custom call-funnel (no Meta Ads section) |
 
 ## 2. Tech stack & non-negotiable constraints
 
