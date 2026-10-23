@@ -56,6 +56,24 @@ export function ClientNav({
           >
             Launchpad AI
           </Link>
+          {/* Stonnex Roofing — also not in config/clients.ts (its own
+              three-way Old Leads/Meta Ads/Combined pipeline toggle doesn't
+              fit the generic [clientSlug] dashboard, see
+              app/dashboard/stonnex-roofing/page.tsx), so it's rendered here
+              the same way. Unlike Launchpad AI it isn't admin-only — its own
+              single-slug "client" login just never renders this bar at all
+              (see that page's topNav logic), so gating it behind
+              showLaunchpadLink only matters for master's own nav here. */}
+          <Link
+            href="/dashboard/stonnex-roofing"
+            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 ${
+              currentSlug === "stonnex-roofing"
+                ? "bg-[#0067eb] text-white"
+                : "text-slate-600 hover:bg-black/[0.05] hover:text-[#0067eb] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-[#ffcf00]"
+            }`}
+          >
+            Stonnex Roofing
+          </Link>
         </>
       )}
     </div>

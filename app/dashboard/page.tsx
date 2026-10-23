@@ -48,6 +48,19 @@ export default async function MasterDashboardPage() {
             <span className="transition-transform duration-200 ease-snappy group-hover:translate-x-0.5">→</span>
           </p>
         </Link>
+        {/* Stonnex Roofing — also not in config/clients.ts, same reason as
+            Launchpad AI above (its own Old Leads/Meta Ads/Combined pipeline
+            toggle, see app/dashboard/stonnex-roofing/page.tsx). */}
+        <Link
+          href="/dashboard/stonnex-roofing"
+          className="group rounded-xl border border-border bg-white p-5 shadow-card transition-[box-shadow,transform,border-color] duration-200 ease-snappy hover:-translate-y-0.5 hover:border-[#0067eb]/40 hover:shadow-raised active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 dark:bg-[#1e2128] dark:hover:border-[#0067eb]/50"
+        >
+          <p className="text-lg font-semibold text-slate-900 dark:text-white/90">Stonnex Roofing</p>
+          <p className="mt-1 flex items-center gap-1 text-sm font-medium text-[#0067eb] dark:text-[#4d9fff]">
+            View report
+            <span className="transition-transform duration-200 ease-snappy group-hover:translate-x-0.5">→</span>
+          </p>
+        </Link>
       </div>
     </DashboardShell>
   );

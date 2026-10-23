@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { launchpadPipelines, skoolManychatView } from "@/config/launchpad";
+import { PipelineToggle } from "@/components/PipelineToggle";
 
-/** Tab-style switch between Launchpad's two real pipelines and their Combined view — analogous to PeriodToggle, but for which pipeline instead of which time window. Preserves the current period (and, for "custom", the picked from/to) across a pipeline switch. */
+/** Tab-style switch between Launchpad's two real pipelines and their Combined view — see PipelineToggle, the generic component this wraps (shared with Stonnex Roofing's own multi-pipeline dashboard). */
 export function LaunchpadPipelineToggle({
   pipeline,
   period,
@@ -21,23 +21,12 @@ export function LaunchpadPipelineToggle({
   ];
 
   return (
-    <div className="inline-flex flex-wrap rounded-xl border border-border bg-white p-1 shadow-card dark:bg-[#1e2128]">
-      {options.map((option) => {
-        const active = option.value === pipeline;
-        return (
-          <Link
-            key={option.value}
-            href={`/dashboard/launchpad-ai?pipeline=${option.value}&period=${period}${rangeQuery}`}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067eb]/50 ${
-              active
-                ? "bg-[#0067eb] text-white"
-                : "text-slate-600 hover:text-[#0067eb] dark:text-white/60 dark:hover:text-[#ffcf00]"
-            }`}
-          >
-            {option.label}
-          </Link>
-        );
-      })}
-    </div>
+    <PipelineToggle
+      basePath="/dashboard/launchpad-ai"
+      options={options}
+      pipeline={pipeline}
+      period={period}
+      rangeQuery={rangeQuery}
+    />
   );
 }

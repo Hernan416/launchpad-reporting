@@ -1,5 +1,6 @@
 import type {
   CallFunnelReport,
+  CallPipelineViewConfig,
   ClientReport,
   CustomRange,
   LeadSourceCount,
@@ -11,7 +12,7 @@ import type {
   WeeklyPipelineDataPoint,
 } from "@/types";
 import { getClientBySlug } from "@/config/clients";
-import { getLaunchpadPipeline, launchpadCombinedSince, launchpadPipelines, skoolManychatView } from "@/config/launchpad";
+import { launchpadCombinedSince, launchpadPipelines, skoolManychatView } from "@/config/launchpad";
 import { getMetaInsights, getMetaWeeklyInsights, type MetaInsights } from "@/lib/meta";
 import {
   getAppointmentStats,
@@ -506,14 +507,18 @@ function sumCallFunnelStats(a: CallFunnelStats, b: WeeklyLikeCallFunnelStats): C
 }
 
 /**
- * Launchpad AI's own admin-only dashboard (config/launchpad.ts) — one of its
- * two real pipelines, or "combined" for both summed together. The Combined
- * view deliberately omits Calls Made and Meta ad metrics (no cac/roas either)
- * per the user 2026-09-04: only one of the two pipelines has ad spend at
- * all, and blending a call count across two differently-shaped funnels isn't
- * a meaningful number — see CallFunnelReport.meta.
+ * Shared by any multi-pipeline call-funnel dashboard (Launchpad AI's own
+ * internal pipelines, and Stonnex Roofing's "Old Leads"/"Meta Ads" — see
+ * config/launchpad.ts and config/stonnex.ts) — one of `pipelines`, or
+ * "combined" for all of them summed together. The Combined view deliberately
+ * omits the entry-count metric (Calls Made/Leads) and Meta ad metrics (no
+ * cac/roas either) per the user 2026-09-04 (for Launchpad specifically):
+ * only one of the two pipelines has ad spend at all, and blending a count
+ * across two differently-shaped funnels isn't a meaningful number — see
+ * CallFunnelReport.meta.
  */
-export async function getLaunchpadReport(
+export async function getMultiPipelineReport(
+  pipelines: CallPipelineViewConfig[],
   pipelineKey: string,
   period: Period,
   customRange?: CustomRange
@@ -522,7 +527,7 @@ export async function getLaunchpadReport(
 
   if (pipelineKey === "combined") {
     const results = await Promise.allSettled(
-      launchpadPipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period, customRange))
+      pipelines.map((p) => getCallFunnelStats(p.client, p.funnel, period, customRange))
     );
     let totals = EMPTY_CALL_FUNNEL_STATS;
     const fulfilledStats: CallFunnelStats[] = [];
@@ -531,21 +536,19 @@ export async function getLaunchpadReport(
         totals = sumCallFunnelStats(totals, r.value);
         fulfilledStats.push(r.value);
       } else {
-        console.error(`[metrics] Launchpad ${launchpadPipelines[i].key} fetch failed:`, r.reason);
-        warnings.push(`Couldn't load ${launchpadPipelines[i].name} from GHL.`);
+        console.error(`[metrics] ${pipelines[i].key} fetch failed:`, r.reason);
+        warnings.push(`Couldn't load ${pipelines[i].name} from GHL.`);
       }
     });
 
     // TEST / EASILY REMOVABLE — see CallFunnelStageConfig.lostReasons and
     // components/sections/LostReasonsBreakdown.tsx. Unlike the single-
-    // pipeline branch, Combined merges both pipelines' buckets by label
-    // (summed) — most labels exist in both configs (Disqualified, Territory
-    // Taken, Long Term Nurture), a few don't (Invalid Lead/Unreachable are
-    // ads-only, Dead Lead is cold-call-only), which is fine: a label with no
-    // data from a given pipeline just contributes 0 to that sum.
+    // pipeline branch, Combined merges every pipeline's buckets by label
+    // (summed) — a label with no data from a given pipeline just
+    // contributes 0 to that sum.
     const leadsSoFar = fulfilledStats.reduce((sum, s) => sum + s.totalLeadsEver, 0);
     const descriptionByLabel = new Map<string, string>();
-    for (const p of launchpadPipelines) {
+    for (const p of pipelines) {
       for (const reason of p.funnel.lostReasons ?? []) {
         if (!descriptionByLabel.has(reason.label)) descriptionByLabel.set(reason.label, reason.description);
       }
@@ -582,9 +585,9 @@ export async function getLaunchpadReport(
     };
   }
 
-  const view = getLaunchpadPipeline(pipelineKey);
+  const view = pipelines.find((p) => p.key === pipelineKey);
   if (!view) {
-    throw new Error(`Unknown Launchpad pipeline key: ${pipelineKey}`);
+    throw new Error(`Unknown pipeline key: ${pipelineKey}`);
   }
 
   const [statsResult, metaResult] = await Promise.allSettled([
@@ -605,7 +608,7 @@ export async function getLaunchpadReport(
   if (statsResult.status === "fulfilled") {
     stats = statsResult.value;
   } else {
-    console.error(`[metrics] Launchpad ${pipelineKey} fetch failed:`, statsResult.reason);
+    console.error(`[metrics] ${pipelineKey} fetch failed:`, statsResult.reason);
     warnings.push(`Couldn't load ${view.name} from GHL.`);
   }
 
@@ -627,7 +630,7 @@ export async function getLaunchpadReport(
       };
     } else {
       console.error(
-        `[metrics] Launchpad ${pipelineKey} Meta fetch failed:`,
+        `[metrics] ${pipelineKey} Meta fetch failed:`,
         metaResult.status === "rejected" ? metaResult.reason : "no data"
       );
       warnings.push("Couldn't load Meta Ads data.");
@@ -670,22 +673,24 @@ export async function getLaunchpadReport(
   };
 }
 
-/** Week-by-week version of getLaunchpadReport, for the Launchpad dashboard's trend charts. */
-export async function getLaunchpadTrends(
+/** Week-by-week version of getMultiPipelineReport, for a multi-pipeline dashboard's trend charts. */
+export async function getMultiPipelineTrends(
+  pipelines: CallPipelineViewConfig[],
+  combinedSince: string,
   pipelineKey: string,
   period: Period,
   weeks: number = 4,
   customRange?: CustomRange
 ): Promise<WeeklyCallFunnelDataPoint[]> {
   if (pipelineKey === "combined") {
-    const buckets = resolveTrendBuckets(period, weeks, launchpadCombinedSince, customRange);
+    const buckets = resolveTrendBuckets(period, weeks, combinedSince, customRange);
     const results = await Promise.allSettled(
-      launchpadPipelines.map((p) => getWeeklyCallFunnelStats(p.client, p.funnel, buckets))
+      pipelines.map((p) => getWeeklyCallFunnelStats(p.client, p.funnel, buckets))
     );
     const weeklyByPipeline = results.map((r) => (r.status === "fulfilled" ? r.value : []));
     results.forEach((r, i) => {
       if (r.status === "rejected") {
-        console.error(`[metrics] Launchpad weekly ${launchpadPipelines[i].key} fetch failed:`, r.reason);
+        console.error(`[metrics] weekly ${pipelines[i].key} fetch failed:`, r.reason);
       }
     });
 
@@ -699,7 +704,7 @@ export async function getLaunchpadTrends(
       return {
         weekLabel: bucket.label,
         weekStart: bucket.start.toISOString(),
-        // Calls Made isn't shown in the Combined view — see getLaunchpadReport.
+        // Calls Made/Leads isn't shown in the Combined view — see getMultiPipelineReport.
         callsMade: 0,
         appointmentsBooked: metrics.appointmentsBooked,
         shows: metrics.shows,
@@ -713,9 +718,9 @@ export async function getLaunchpadTrends(
     });
   }
 
-  const view = getLaunchpadPipeline(pipelineKey);
+  const view = pipelines.find((p) => p.key === pipelineKey);
   if (!view) {
-    throw new Error(`Unknown Launchpad pipeline key: ${pipelineKey}`);
+    throw new Error(`Unknown pipeline key: ${pipelineKey}`);
   }
   const buckets = resolveTrendBuckets(period, weeks, view.client.clientSince, customRange);
 
@@ -723,7 +728,7 @@ export async function getLaunchpadTrends(
   try {
     weekly = await getWeeklyCallFunnelStats(view.client, view.funnel, buckets);
   } catch (err) {
-    console.error(`[metrics] Launchpad weekly ${pipelineKey} fetch failed:`, err);
+    console.error(`[metrics] weekly ${pipelineKey} fetch failed:`, err);
   }
   const byWeek = new Map(weekly.map((w) => [w.weekIndex, w]));
 
@@ -744,6 +749,25 @@ export async function getLaunchpadTrends(
       closedRevenue: metrics.closedRevenue,
     };
   });
+}
+
+/** Launchpad AI's own admin-only dashboard (config/launchpad.ts) — thin wrapper around getMultiPipelineReport with its two real pipelines. */
+export async function getLaunchpadReport(
+  pipelineKey: string,
+  period: Period,
+  customRange?: CustomRange
+): Promise<CallFunnelReport> {
+  return getMultiPipelineReport(launchpadPipelines, pipelineKey, period, customRange);
+}
+
+/** Week-by-week version of getLaunchpadReport, for the Launchpad dashboard's trend charts. */
+export async function getLaunchpadTrends(
+  pipelineKey: string,
+  period: Period,
+  weeks: number = 4,
+  customRange?: CustomRange
+): Promise<WeeklyCallFunnelDataPoint[]> {
+  return getMultiPipelineTrends(launchpadPipelines, launchpadCombinedSince, pipelineKey, period, weeks, customRange);
 }
 
 /**
